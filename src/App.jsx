@@ -1,39 +1,42 @@
-// Main app shell — handles auth, routing, and responsive layout (mobile / desktop / wide).
 import { useMemo, useState } from 'react';
-import { Lightbulb, MapPin } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useAuth } from './hooks/useAuth.js';
 import { useEntries } from './hooks/useEntries.js';
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { AuthScreen } from './screens/AuthScreen.jsx';
 import { HomeScreen } from './screens/HomeScreen.jsx';
+import { EntriesScreen } from './screens/EntriesScreen.jsx';
 import { CaptureScreen } from './screens/CaptureScreen.jsx';
 import { ScoutScreen } from './screens/ScoutScreen.jsx';
 import { DetailScreen } from './screens/DetailScreen.jsx';
 import { InsightsScreen } from './screens/InsightsScreen.jsx';
+import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
 import { SideNav } from './components/SideNav.jsx';
 import { Toast } from './components/Toast.jsx';
 import { C } from './constants/theme.js';
 
+// Screens that show BottomNav on mobile.
+const NAV_SCREENS = new Set(['home', 'entries', 'insights', 'settings']);
+
 export default function App() {
   const { session, initializing, authLoading, authError, signIn, signUp, signOut } = useAuth();
   const { isMobile, isDesktop, isWide } = useBreakpoint();
 
-  // screen drives mobile routing; on desktop 'home'/'insights' also set the main area.
-  const [screen, setScreen] = useState('home');
+  const [screen, setScreen]             = useState('home');
   const [selectedEntry, setSelectedEntry] = useState(null);
-  // rightPanel: what's open in the right panel on wide desktop ('capture' | 'scout' | null)
-  const [rightPanel, setRightPanel] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [authMode, setAuthMode] = useState('signin');
+  const [rightPanel, setRightPanel]     = useState(null); // 'capture' | 'scout' | null
+  const [toast, setToast]               = useState(null);
+  const [authMode, setAuthMode]         = useState('signin');
 
   const userId = session?.user?.id;
+  const userEmail = session?.user?.email;
   const { entries, error: entriesError, addEntry, updateEntry, deleteEntry } = useEntries(userId);
 
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
     return 'Good evening';
   }, []);
 
@@ -42,7 +45,7 @@ export default function App() {
     window.setTimeout(() => setToast(null), 2500);
   };
 
-  // ── Auth ────────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
   const handleAuthSubmit = async (email, password) => {
     if (authMode === 'signin') {
       const result = await signIn(email, password);
@@ -56,8 +59,7 @@ export default function App() {
     }
   };
 
-  // ── Navigation helpers ──────────────────────────────────────────────────
-  // On wide desktop, Capture/Scout open in the right panel instead of navigating.
+  // ── Navigation helpers ────────────────────────────────────────────────────
   const handleCaptureClick = () => {
     if (isWide) { setRightPanel('capture'); setSelectedEntry(null); }
     else setScreen('capture');
@@ -68,17 +70,16 @@ export default function App() {
   };
   const handleOpenEntry = (entry) => {
     setSelectedEntry(entry);
-    if (isWide) setRightPanel(null); // clear form panel, show detail panel
+    if (isWide) setRightPanel(null);
     else setScreen('detail');
   };
-  // Used by SideNav — resets sub-state when switching top-level sections.
   const handleNavChange = (newScreen) => {
     setScreen(newScreen);
-    setSelectedEntry(null);
+    if (!isWide) setSelectedEntry(null);
     setRightPanel(null);
   };
 
-  // ── Entry CRUD ──────────────────────────────────────────────────────────
+  // ── Entry CRUD ────────────────────────────────────────────────────────────
   const handleAddEntry = async (entry) => {
     const created = await addEntry(entry);
     if (created) {
@@ -101,19 +102,22 @@ export default function App() {
     }
   };
 
-  // ── Derived state ───────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
   const currentEntry = selectedEntry
     ? entries.find((e) => e.id === selectedEntry.id) || selectedEntry
     : null;
-  // The "main" section for sidebar highlighting (home or insights).
-  const mainScreen = screen === 'insights' ? 'insights' : 'home';
 
-  // ── Loading / Auth gates ────────────────────────────────────────────────
+  // What the sidebar/bottomnav should highlight (ignores 'detail'/'capture'/'scout' sub-screens).
+  const mainScreen = NAV_SCREENS.has(screen) ? screen : 'home';
+
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (initializing) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg }}>
-        <div style={{ fontSize: 40 }}>✦</div>
-        <div style={{ color: C.sub, fontSize: 13, animation: 'pulse 1.5s ease infinite', marginLeft: 12 }}>Loading…</div>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.bg, gap: 16 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #1A2B1A, #2D3B22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Sparkles size={24} color={C.accent} strokeWidth={2} style={{ animation: 'pulse 1.5s ease infinite' }} />
+        </div>
+        <div style={{ color: C.muted, fontSize: 13, animation: 'pulse 1.5s ease infinite' }}>Loading…</div>
       </div>
     );
   }
@@ -132,12 +136,12 @@ export default function App() {
   }
 
   const errorBanner = entriesError && (
-    <div style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 18px', color: '#E8614A', fontSize: 13, zIndex: 100 }}>
+    <div style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 18px', color: C.error, fontSize: 13, zIndex: 100, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
       {entriesError}
     </div>
   );
 
-  // ── DESKTOP LAYOUT (≥ 768px) ───────────────────────────────────────────
+  // ── DESKTOP LAYOUT (≥768px) ───────────────────────────────────────────────
   if (isDesktop) {
     return (
       <div style={{ display: 'flex', height: '100vh', background: C.bg, overflow: 'hidden' }}>
@@ -146,42 +150,29 @@ export default function App() {
           setScreen={handleNavChange}
           onSignOut={signOut}
           entryCount={entries.length}
+          onCapture={handleCaptureClick}
         />
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-          {/* Wide (≥1200px) + home view: 3-column split panel */}
-          {isWide && screen !== 'insights' ? (
+          {/* Wide (≥1200px) + home/entries: 3-column split */}
+          {isWide && (screen === 'home' || screen === 'entries') ? (
             <>
-              {/* Column 2 — entry list */}
-              <div style={{
-                width: 360,
-                flexShrink: 0,
-                borderRight: `1px solid ${C.border}`,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-              }}>
+              {/* Column 2 — entries list */}
+              <div style={{ width: 360, flexShrink: 0, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <HomeScreen
                   entries={entries}
                   greeting={greeting}
                   compact
                   onCapture={handleCaptureClick}
-                  onScout={handleScoutClick}
                   onOpen={handleOpenEntry}
                 />
               </div>
 
-              {/* Column 3 — detail / form / empty state */}
+              {/* Column 3 — detail / form / dashboard */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
                 {currentEntry && !rightPanel && (
-                  <DetailScreen
-                    entry={currentEntry}
-                    onBack={() => setSelectedEntry(null)}
-                    onDelete={handleDeleteEntry}
-                    onUpdate={handleUpdateEntry}
-                    showToast={showToast}
-                  />
+                  <DetailScreen entry={currentEntry} onBack={() => setSelectedEntry(null)} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />
                 )}
                 {rightPanel === 'capture' && (
                   <CaptureScreen onSave={handleAddEntry} onBack={() => setRightPanel(null)} />
@@ -189,21 +180,25 @@ export default function App() {
                 {rightPanel === 'scout' && (
                   <ScoutScreen onSave={handleAddEntry} onBack={() => setRightPanel(null)} />
                 )}
-                {!currentEntry && !rightPanel && <PanelEmptyState onCapture={handleCaptureClick} onScout={handleScoutClick} />}
+                {!currentEntry && !rightPanel && (
+                  <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onOpen={handleOpenEntry} />
+                )}
               </div>
             </>
           ) : (
-            /* Regular desktop (768–1199px) or Insights: single content column */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {mainScreen === 'home' && screen === 'home' && (
-                <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onScout={handleScoutClick} onOpen={handleOpenEntry} />
+            /* Regular desktop or non-home screens */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              {mainScreen === 'home'     && screen !== 'capture' && screen !== 'scout' && !currentEntry && (
+                <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onOpen={handleOpenEntry} />
               )}
-              {screen === 'capture' && <CaptureScreen onSave={handleAddEntry} onBack={() => setScreen('home')} />}
-              {screen === 'scout'   && <ScoutScreen   onSave={handleAddEntry} onBack={() => setScreen('home')} />}
-              {screen === 'detail'  && currentEntry && (
-                <DetailScreen entry={currentEntry} onBack={() => setScreen('home')} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />
+              {mainScreen === 'entries' && screen !== 'capture' && screen !== 'scout' && !currentEntry && (
+                <EntriesScreen entries={entries} onOpen={handleOpenEntry} />
               )}
+              {screen === 'capture'  && <CaptureScreen onSave={handleAddEntry} onBack={() => handleNavChange(mainScreen)} />}
+              {screen === 'scout'    && <ScoutScreen   onSave={handleAddEntry} onBack={() => handleNavChange(mainScreen)} />}
+              {currentEntry          && <DetailScreen entry={currentEntry} onBack={() => setSelectedEntry(null)} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />}
               {screen === 'insights' && <InsightsScreen entries={entries} />}
+              {screen === 'settings' && <SettingsScreen onSignOut={signOut} userEmail={userEmail} />}
             </div>
           )}
         </div>
@@ -214,49 +209,22 @@ export default function App() {
     );
   }
 
-  // ── MOBILE LAYOUT (< 768px) ────────────────────────────────────────────
+  // ── MOBILE LAYOUT (<768px) ────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 430, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-      {screen === 'home'     && <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onScout={handleScoutClick} onOpen={handleOpenEntry} onSignOut={signOut} />}
-      {screen === 'capture'  && <CaptureScreen onSave={handleAddEntry} onBack={() => setScreen('home')} />}
-      {screen === 'scout'    && <ScoutScreen   onSave={handleAddEntry} onBack={() => setScreen('home')} />}
-      {screen === 'detail'   && currentEntry && <DetailScreen entry={currentEntry} onBack={() => setScreen('home')} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />}
+    <div style={{ maxWidth: 430, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', background: C.bg }}>
+      {screen === 'home'     && <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onOpen={handleOpenEntry} />}
+      {screen === 'entries'  && <EntriesScreen entries={entries} onOpen={handleOpenEntry} />}
+      {screen === 'capture'  && <CaptureScreen onSave={handleAddEntry} onBack={() => setScreen(mainScreen)} />}
+      {screen === 'scout'    && <ScoutScreen   onSave={handleAddEntry} onBack={() => setScreen(mainScreen)} />}
+      {screen === 'detail'   && currentEntry && <DetailScreen entry={currentEntry} onBack={() => setScreen(mainScreen === 'entries' ? 'entries' : 'home')} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />}
       {screen === 'insights' && <InsightsScreen entries={entries} />}
+      {screen === 'settings' && <SettingsScreen onSignOut={signOut} userEmail={userEmail} />}
 
       {toast && <Toast emoji={toast.emoji} message={toast.message} />}
-      {['home', 'insights'].includes(screen) && <BottomNav screen={screen} setScreen={handleNavChange} />}
+      {NAV_SCREENS.has(screen) && (
+        <BottomNav screen={screen} setScreen={handleNavChange} onCapture={handleCaptureClick} />
+      )}
       {errorBanner}
-    </div>
-  );
-}
-
-// Empty state shown in the right panel when nothing is selected on wide desktop.
-function PanelEmptyState({ onCapture, onScout }) {
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 40 }}>
-      <div style={{ fontSize: 64, opacity: 0.12 }}>✦</div>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 8 }}>
-          Nothing selected
-        </div>
-        <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.7 }}>
-          Pick an entry from the list, or start a new capture.
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-        <button
-          onClick={onCapture}
-          style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 12, padding: '11px 22px', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}
-        >
-          <Lightbulb size={15} strokeWidth={2} /> Capture idea
-        </button>
-        <button
-          onClick={onScout}
-          style={{ background: '#2BA84A18', color: '#2BA84A', border: '1px solid #2BA84A44', borderRadius: 12, padding: '11px 22px', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}
-        >
-          <MapPin size={15} strokeWidth={2} /> Scout mode
-        </button>
-      </div>
     </div>
   );
 }

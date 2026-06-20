@@ -52,9 +52,11 @@ export function useEntries(userId) {
   const updateEntry = async (entry) => {
     setLoading(true);
     setError(null);
+    const payload = { title: entry.title, body: entry.body, type: entry.type, location: entry.location, excited: entry.excited };
+    if (entry.photo !== undefined) payload.photo = entry.photo;
     const { data, error: updateError } = await supabase
       .from('entries')
-      .update({ title: entry.title, body: entry.body, type: entry.type, location: entry.location, excited: entry.excited })
+      .update(payload)
       .eq('id', entry.id)
       .eq('user_id', userId)
       .select();

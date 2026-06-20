@@ -1,147 +1,436 @@
-// Detail screen — view and edit a single entry with Lucide action icons.
-import { useEffect, useState } from 'react';
-import { ChevronLeft, Pencil, X, Trash2, MapPin, Star } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, Sparkles, MoreHorizontal, Pencil, X, Check, Trash2, Image, Type, List } from 'lucide-react';
 import { C, typeMap } from '../constants/theme.js';
+import { formatEntryDate, timeOfDay } from '../utils/time.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
-export function DetailScreen({ entry, onBack, onDelete, onUpdate, showToast }) {
+const FONT_SIZES = [14, 16, 19];
+
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxPx = 900;
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function DeleteSheet({ onClose, onConfirm }) {
+  return (
+    <div
+      style={{ position: 'absolute', inset: 0, background: 'rgba(28,25,23,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 30 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: C.surface, borderRadius: '24px 24px 0 0', padding: '28px 20px 48px', width: '100%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <Trash2 size={18} color={C.error} strokeWidth={2} />
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: C.text }}>
+            Delete this entry?
+          </div>
+        </div>
+        <div style={{ fontSize: 14, color: C.sub, marginBottom: 24 }}>This action cannot be undone.</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 14, padding: '13px', fontSize: 15, fontWeight: 500, color: C.text, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={{ flex: 1, background: C.error, border: 'none', borderRadius: 14, padding: '13px', fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function DetailScreen({ entry, onBack, onDelete, onUpdate }) {
   const [editing, setEditing]   = useState(false);
   const [title, setTitle]       = useState(entry.title || '');
-  const [body, setBody]         = useState(entry.body  || '');
+  const [body, setBody]         = useState(entry.body   || '');
+  const [photo, setPhoto]       = useState(entry.photo  || null);
   const [showDel, setShowDel]   = useState(false);
-  const { isDesktop }           = useBreakpoint();
+  const [showMore, setShowMore] = useState(false);
+  const [fontIdx, setFontIdx]   = useState(1);       // 0=small 1=normal 2=large
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const bodyRef   = useRef(null);
+  const fileRef   = useRef(null);
+  const { isDesktop } = useBreakpoint();
   const t = typeMap[entry.type] || typeMap.idea;
+  const fontSize  = FONT_SIZES[fontIdx];
 
   useEffect(() => {
     setTitle(entry.title || '');
     setBody(entry.body   || '');
-  }, [entry]);
+    setPhoto(entry.photo || null);
+    setEditing(false);
+  }, [entry.id]);
 
   const handleSave = async () => {
-    const updated = await onUpdate({ ...entry, title, body });
+    const updated = await onUpdate({ ...entry, title, body, photo });
     if (updated) setEditing(false);
   };
 
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+  const handleCancel = () => {
+    setTitle(entry.title || '');
+    setBody(entry.body   || '');
+    setPhoto(entry.photo || null);
+    setEditing(false);
+  };
 
-      {/* ── Header ── */}
-      <div style={{ padding: isDesktop ? '24px 32px 16px' : '52px 20px 16px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          {/* Back */}
-          <button
-            onClick={onBack}
-            style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, width: 36, height: 36, cursor: 'pointer', color: C.sub, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
+  const handleAa = () => setFontIdx((i) => (i + 1) % FONT_SIZES.length);
 
-          {/* Actions */}
+  const handleBullet = () => {
+    if (!editing) {
+      setEditing(true);
+      // Insert bullet at start on next tick when textarea mounts
+      setTimeout(() => {
+        const el = bodyRef.current;
+        if (!el) return;
+        el.focus();
+        const pos = el.selectionStart || body.length;
+        const before = body.substring(0, pos);
+        const after  = body.substring(pos);
+        const insertion = (before.length > 0 && !before.endsWith('\n')) ? '\n• ' : '• ';
+        const next = before + insertion + after;
+        setBody(next);
+        const cur = before.length + insertion.length;
+        setTimeout(() => el.setSelectionRange(cur, cur), 0);
+      }, 60);
+      return;
+    }
+    const el = bodyRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const before = body.substring(0, start);
+    const after  = body.substring(el.selectionEnd);
+    const insertion = (before.length > 0 && !before.endsWith('\n')) ? '\n• ' : '• ';
+    const next = before + insertion + after;
+    setBody(next);
+    const cur = before.length + insertion.length;
+    setTimeout(() => { el.focus(); el.setSelectionRange(cur, cur); }, 0);
+  };
+
+  const handlePhotoClick = () => fileRef.current?.click();
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoLoading(true);
+    try {
+      const compressed = await compressImage(file);
+      setPhoto(compressed);
+      if (!editing) {
+        // Auto-save photo immediately in view mode
+        await onUpdate({ ...entry, title, body, photo: compressed });
+      }
+    } finally {
+      setPhotoLoading(false);
+    }
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = async () => {
+    setPhoto(null);
+    await onUpdate({ ...entry, title, body, photo: null });
+  };
+
+  // ── Shared toolbar buttons (first 3 are always present) ─────────────
+  const ToolbarLeft = () => (
+    <>
+      {/* Hidden file input */}
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFileChange} />
+
+      {/* Photo */}
+      <button
+        onClick={handlePhotoClick}
+        disabled={photoLoading}
+        style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: photo ? C.accent : C.muted, opacity: photoLoading ? 0.5 : 1 }}
+      >
+        <Image size={18} strokeWidth={1.75} />
+        <span style={{ fontSize: 9, fontWeight: photo ? 600 : 400, color: photo ? C.accent : C.muted }}>{photoLoading ? '…' : 'Photo'}</span>
+      </button>
+
+      <div style={{ width: 1, height: 24, background: C.border }} />
+
+      {/* Aa */}
+      <button
+        onClick={handleAa}
+        style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: fontIdx !== 1 ? C.accent : C.muted }}
+      >
+        <Type size={18} strokeWidth={1.75} />
+        <span style={{ fontSize: 9, fontWeight: fontIdx !== 1 ? 600 : 400, color: fontIdx !== 1 ? C.accent : C.muted }}>{['Sm', 'Aa', 'Lg'][fontIdx]}</span>
+      </button>
+
+      <div style={{ width: 1, height: 24, background: C.border }} />
+
+      {/* List */}
+      <button
+        onClick={handleBullet}
+        style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: C.muted }}
+      >
+        <List size={18} strokeWidth={1.75} />
+        <span style={{ fontSize: 9 }}>List</span>
+      </button>
+
+      <div style={{ width: 1, height: 24, background: C.border }} />
+    </>
+  );
+
+  // ── Desktop layout ────────────────────────────────────────────────────
+  if (isDesktop) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.bg, position: 'relative' }}>
+        {/* Desktop header */}
+        <div style={{ padding: '24px 40px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${C.border}` }}>
+          {onBack && (
+            <button onClick={onBack} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, width: 38, height: 38, cursor: 'pointer', color: C.sub, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ChevronLeft size={18} strokeWidth={2} />
+            </button>
+          )}
+          <div style={{ fontSize: 12, color: C.muted, flex: 1, textAlign: 'center' }}>
+            {formatEntryDate(entry.created_at)} · {timeOfDay(entry.created_at)}
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => setEditing(!editing)}
-              style={{
-                background: editing ? C.accent : C.card,
-                border: `1px solid ${editing ? C.accent : C.border}`,
-                borderRadius: 10, padding: '0 14px', height: 36, cursor: 'pointer',
-                color: editing ? '#fff' : C.sub,
-                display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500,
-              }}
-            >
-              {editing ? <X size={14} strokeWidth={2} /> : <Pencil size={14} strokeWidth={1.75} />}
-              {editing ? 'Cancel' : 'Edit'}
+            {/* Aa */}
+            <button onClick={handleAa} style={{ background: C.surface, border: `1px solid ${fontIdx !== 1 ? C.accent : C.border}`, borderRadius: 12, width: 38, height: 38, cursor: 'pointer', color: fontIdx !== 1 ? C.accent : C.sub, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>
+              Aa
             </button>
-            <button
-              onClick={() => setShowDel(true)}
-              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, width: 36, height: 36, cursor: 'pointer', color: C.sub, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Trash2 size={15} strokeWidth={1.75} />
+            {/* Photo */}
+            <button onClick={handlePhotoClick} style={{ background: C.surface, border: `1px solid ${photo ? C.accent : C.border}`, borderRadius: 12, width: 38, height: 38, cursor: 'pointer', color: photo ? C.accent : C.sub, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Image size={15} strokeWidth={1.75} />
             </button>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+            {editing ? (
+              <>
+                <button onClick={handleBullet} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, width: 38, height: 38, cursor: 'pointer', color: C.sub, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <List size={15} strokeWidth={1.75} />
+                </button>
+                <button onClick={handleCancel} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '0 14px', height: 38, cursor: 'pointer', color: C.sub, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <X size={14} strokeWidth={2} /> Cancel
+                </button>
+                <button onClick={handleSave} style={{ background: C.accent, border: 'none', borderRadius: 12, padding: '0 16px', height: 38, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600 }}>
+                  <Check size={14} strokeWidth={2.5} /> Save
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setEditing(true)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '0 14px', height: 38, cursor: 'pointer', color: C.sub, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500 }}>
+                  <Pencil size={14} strokeWidth={1.75} /> Edit
+                </button>
+                <button onClick={() => setShowDel(true)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, width: 38, height: 38, cursor: 'pointer', color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={15} strokeWidth={1.75} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Type badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${t.color}22`, border: `1px solid ${t.color}44`, borderRadius: 8, padding: '4px 10px', marginBottom: 10 }}>
-          <span style={{ fontSize: 13 }}>{t.icon}</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: t.color }}>{t.label}</span>
+        {/* Desktop content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px 48px' }}>
+          {editing ? (
+            <>
+              <input value={title} onChange={(e) => setTitle(e.target.value)}
+                style={{ width: '100%', fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: C.text, border: 'none', background: 'transparent', outline: 'none', marginBottom: 20, padding: 0 }}
+              />
+              {photo && (
+                <div style={{ position: 'relative', marginBottom: 20, display: 'inline-block' }}>
+                  <img src={photo} alt="" style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 14, display: 'block', objectFit: 'cover' }} />
+                  <button onClick={handleRemovePhoto} style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(28,25,23,0.65)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X size={14} strokeWidth={2.5} />
+                  </button>
+                </div>
+              )}
+              <textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} rows={16}
+                style={{ width: '100%', fontSize, color: C.text, lineHeight: 1.85, border: `1px solid ${C.border}`, background: C.surface, borderRadius: 14, padding: '16px', resize: 'none', outline: 'none' }}
+              />
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${t.color}12`, border: `1px solid ${t.color}30`, borderRadius: 8, padding: '4px 10px', marginBottom: 14 }}>
+                <span style={{ fontSize: 12 }}>{t.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: t.color }}>{t.label}</span>
+              </div>
+              <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: C.text, lineHeight: 1.25, marginBottom: 22 }}>
+                {entry.title || 'Untitled'}
+              </h1>
+              {photo && (
+                <img src={photo} alt="" style={{ maxWidth: '100%', maxHeight: 360, borderRadius: 16, display: 'block', objectFit: 'cover', marginBottom: 22 }} />
+              )}
+              {entry.body
+                ? <div style={{ fontSize, color: C.text, lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
+                : <div style={{ fontSize: 15, color: C.muted, fontStyle: 'italic' }}>No notes. Click Edit to add more.</div>
+              }
+            </>
+          )}
         </div>
 
-        {/* Date + location */}
-        <div style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span>{new Date(entry.created_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-          {entry.location && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <MapPin size={11} strokeWidth={2} />
-              {entry.location}
-            </span>
-          )}
+        {showDel && <DeleteSheet onClose={() => setShowDel(false)} onConfirm={() => onDelete(entry.id)} />}
+      </div>
+    );
+  }
+
+  // ── Mobile layout ────────────────────────────────────────────────────
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.bg, position: 'relative' }}>
+
+      {/* Mobile header */}
+      <div style={{ padding: '52px 20px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button
+          onClick={onBack}
+          style={{ width: 36, height: 36, borderRadius: 12, background: C.surface, border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.sub }}
+        >
+          <ChevronLeft size={17} strokeWidth={2} />
+        </button>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Sparkles size={17} color={C.muted} strokeWidth={1.75} />
+          <button
+            onClick={() => setShowMore(!showMore)}
+            style={{ width: 36, height: 36, borderRadius: 12, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted }}
+          >
+            <MoreHorizontal size={20} strokeWidth={1.75} />
+          </button>
         </div>
       </div>
 
-      {/* ── Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: isDesktop ? '0 32px 32px' : '0 20px 20px' }}>
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 24px 140px' }}>
+        {/* Date + time */}
+        <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, letterSpacing: '0.01em' }}>
+          {formatEntryDate(entry.created_at)} · {timeOfDay(entry.created_at)}
+        </div>
+
         {editing ? (
           <>
             <input
+              autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              style={{ width: '100%', background: C.card, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '12px 14px', fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 14, outline: 'none', fontFamily: "'Sora',sans-serif" }}
+              placeholder="Title…"
+              style={{
+                width: '100%', fontFamily: "'Playfair Display', serif",
+                fontSize: 26, fontWeight: 700, color: C.text,
+                border: 'none', background: 'transparent', outline: 'none',
+                marginBottom: 20, padding: 0, lineHeight: 1.25,
+              }}
             />
+            {photo && (
+              <div style={{ position: 'relative', marginBottom: 18 }}>
+                <img src={photo} alt="" style={{ width: '100%', maxHeight: 220, borderRadius: 14, display: 'block', objectFit: 'cover' }} />
+                <button
+                  onClick={handleRemovePhoto}
+                  style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(28,25,23,0.65)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={14} strokeWidth={2.5} />
+                </button>
+              </div>
+            )}
             <textarea
+              ref={bodyRef}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              rows={8}
-              style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: C.text, resize: 'none', outline: 'none', lineHeight: 1.7, marginBottom: 20 }}
+              rows={16}
+              placeholder="Write your thoughts…"
+              style={{
+                width: '100%', fontSize, color: C.text, lineHeight: 1.9,
+                border: 'none', background: 'transparent', resize: 'none',
+                outline: 'none', padding: 0,
+              }}
             />
-            <button
-              onClick={handleSave}
-              style={{ width: '100%', background: t.color, color: '#fff', border: 'none', borderRadius: 14, padding: '14px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Save changes
-            </button>
           </>
         ) : (
           <>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 16 }}>
+            <h1 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 26, fontWeight: 700, color: C.text,
+              lineHeight: 1.25, marginBottom: 18,
+            }}>
               {entry.title || 'Untitled'}
-            </div>
-            {entry.excited > 0 && (
-              <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <Star key={n} size={15} strokeWidth={1.5} color="#E09A2B" fill={n <= entry.excited ? '#E09A2B' : 'transparent'} style={{ opacity: n <= entry.excited ? 1 : 0.2 }} />
-                ))}
+            </h1>
+            {photo && (
+              <div style={{ position: 'relative', marginBottom: 18 }}>
+                <img src={photo} alt="" style={{ width: '100%', maxHeight: 220, borderRadius: 16, display: 'block', objectFit: 'cover' }} />
+                <button
+                  onClick={handleRemovePhoto}
+                  style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(28,25,23,0.60)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={13} strokeWidth={2.5} />
+                </button>
               </div>
             )}
             {entry.body
-              ? <div style={{ fontSize: 15, color: C.sub, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
-              : <div style={{ fontSize: 14, color: C.muted, fontStyle: 'italic' }}>No notes. Tap Edit to add more.</div>
+              ? <div style={{ fontSize, color: C.text, lineHeight: 1.92, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
+              : <div style={{ fontSize: 15, color: C.muted, fontStyle: 'italic' }}>No notes yet. Tap the pencil to add.</div>
             }
           </>
         )}
       </div>
 
-      {/* ── Delete confirmation sheet ── */}
-      {showDel && (
-        <div
-          style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-end', zIndex: 10 }}
-          onClick={() => setShowDel(false)}
-        >
+      {/* More menu dropdown */}
+      {showMore && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 20 }} onClick={() => setShowMore(false)}>
           <div
-            style={{ background: C.surface, borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%' }}
+            style={{ position: 'absolute', top: 88, right: 20, background: C.surface, borderRadius: 16, padding: '6px', boxShadow: '0 8px 32px rgba(28,25,23,0.15)', border: `1px solid ${C.border}`, minWidth: 160 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <Trash2 size={18} color="#E8614A" strokeWidth={2} />
-              <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700 }}>Delete this entry?</div>
-            </div>
-            <div style={{ fontSize: 14, color: C.sub, marginBottom: 24 }}>This can't be undone.</div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowDel(false)} style={{ flex: 1, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 500, color: C.text, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={() => onDelete(entry.id)} style={{ flex: 1, background: '#E8614A', border: 'none', borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>Delete</button>
-            </div>
+            <button
+              onClick={() => { setShowMore(false); setShowDel(true); }}
+              style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, color: C.error, fontSize: 14 }}
+            >
+              <Trash2 size={16} strokeWidth={1.75} /> Delete entry
+            </button>
           </div>
         </div>
       )}
+
+      {/* Floating bottom toolbar */}
+      <div style={{
+        position: 'fixed', bottom: 18, left: '50%', transform: 'translateX(-50%)',
+        width: 'calc(100% - 60px)', maxWidth: 320,
+        background: C.surface, borderRadius: 32, height: 60,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+        boxShadow: '0 8px 32px rgba(28,25,23,0.13), 0 2px 10px rgba(28,25,23,0.07)',
+        border: `1px solid ${C.border}`, zIndex: 10, padding: '0 8px',
+      }}>
+        <ToolbarLeft />
+
+        {editing ? (
+          <>
+            <button onClick={handleCancel} style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: C.muted }}>
+              <X size={18} strokeWidth={1.75} />
+              <span style={{ fontSize: 9 }}>Cancel</span>
+            </button>
+            <div style={{ width: 1, height: 24, background: C.border }} />
+            <button onClick={handleSave} style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Check size={18} strokeWidth={2.5} color={C.accent} />
+              <span style={{ fontSize: 9, fontWeight: 600, color: C.accent }}>Save</span>
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: C.accent }}
+          >
+            <Pencil size={18} strokeWidth={1.75} />
+            <span style={{ fontSize: 9, fontWeight: 600 }}>Edit</span>
+          </button>
+        )}
+      </div>
+
+      {showDel && <DeleteSheet onClose={() => setShowDel(false)} onConfirm={() => onDelete(entry.id)} />}
     </div>
   );
 }

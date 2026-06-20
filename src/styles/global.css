@@ -1,5 +1,4 @@
-/* Global CSS resets and font imports used by the app. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600&display=swap');
 
 * {
   box-sizing: border-box;
@@ -11,14 +10,14 @@ html,
 body,
 #root {
   min-height: 100%;
-  background: #0E0F14;
+  background: #F7F3EE;
 }
 
 body {
   font-family: 'Inter', sans-serif;
-  color: #E8E9F0;
+  color: #1C1917;
   -webkit-font-smoothing: antialiased;
-  background: #0E0F14;
+  background: #F7F3EE;
 }
 
 button,
@@ -34,10 +33,16 @@ button {
 textarea,
 input {
   font-family: inherit;
+  color: #1C1917;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #BCA99A;
 }
 
 ::selection {
-  background: rgba(124, 106, 247, 0.2);
+  background: rgba(201, 168, 76, 0.25);
 }
 
 ::-webkit-scrollbar {
@@ -49,14 +54,14 @@ input {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2b38;
+  background: #EBE4DA;
   border-radius: 4px;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -74,11 +79,6 @@ input {
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
