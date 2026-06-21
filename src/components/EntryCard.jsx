@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, ChevronRight } from 'lucide-react';
 import { typeMap, C } from '../constants/theme.js';
+import { TypeIcon, TypeCircle, TypeBadge } from './TypeIcon.jsx';
 import { formatEntryDate, timeOfDay } from '../utils/time.js';
 
-const GRADIENTS = {
-  idea:    'linear-gradient(135deg, #9B8BF7 0%, #C8C0FF 100%)',
-  problem: 'linear-gradient(135deg, #C94A3A 0%, #F4A58C 100%)',
-  scout:   'linear-gradient(135deg, #3A7A5A 0%, #7DC8A0 100%)',
-  project: 'linear-gradient(135deg, #D4893A 0%, #F5C87A 100%)',
-};
-
-// flat=true: used inside a bordered container (HomeScreen recent list)
+// flat=true: compact row (compact list panels)
 export function EntryCard({ entry, onOpen, flat }) {
   const [pressed, setPressed] = useState(false);
-  const type     = typeMap[entry.type] || typeMap.idea;
-  const gradient = GRADIENTS[entry.type] || GRADIENTS.idea;
-  const isStarred = (entry.excited || 0) > 0;
+  const t = typeMap[entry.type] || typeMap.idea;
+  const isStarred = (entry.excited || 0) >= 3;
 
   if (flat) {
     return (
@@ -27,33 +20,45 @@ export function EntryCard({ entry, onOpen, flat }) {
         onTouchStart={() => setPressed(true)}
         onTouchEnd={() => setPressed(false)}
         style={{
-          background: C.surface, padding: '14px 16px', cursor: 'pointer',
+          background: C.surface,
+          padding: '12px 16px',
+          cursor: 'pointer',
           transform: pressed ? 'scale(0.985)' : 'scale(1)',
           transition: 'transform 0.1s ease',
-          display: 'flex', gap: 12, alignItems: 'flex-start',
+          display: 'flex',
+          gap: 12,
+          alignItems: 'center',
         }}
       >
+        <div style={{
+          width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+          background: `${t.color}12`,
+          border: `1px solid ${t.color}22`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <TypeIcon type={entry.type} size={15} strokeWidth={2} />
+        </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
-            {formatEntryDate(entry.created_at)} · {timeOfDay(entry.created_at)} · <span style={{ color: type.color, fontWeight: 600 }}>{type.label}</span>
-          </div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: C.text, lineHeight: 1.35, marginBottom: entry.body ? 4 : 0 }}>
+          <div style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 14, fontWeight: 600, color: C.text, lineHeight: 1.3,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             {entry.title || 'Untitled'}
           </div>
-          {entry.body && (
-            <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {entry.body}
-            </div>
-          )}
+          <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2 }}>
+            <span style={{ color: t.color, fontWeight: 600 }}>{t.label}</span>
+            {' · '}{formatEntryDate(entry.created_at)}
+          </div>
         </div>
-        <div style={{ width: 48, height: 48, borderRadius: 10, flexShrink: 0, background: gradient, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 18 }}>{type.icon}</span>
-        </div>
+
+        {isStarred && <Star size={12} fill={C.accent} color={C.accent} strokeWidth={0} style={{ flexShrink: 0 }} />}
       </div>
     );
   }
 
-  // ── Premium floating card (for EntriesScreen) ──
+  // Premium card
   return (
     <div
       onClick={() => onOpen(entry)}
@@ -64,32 +69,41 @@ export function EntryCard({ entry, onOpen, flat }) {
       onTouchEnd={() => setPressed(false)}
       style={{
         background: C.surface,
-        borderRadius: 20,
-        padding: '18px 16px',
+        borderRadius: 18,
+        padding: '16px 18px',
         cursor: 'pointer',
-        transform: pressed ? 'scale(0.975)' : 'scale(1)',
+        transform: pressed ? 'scale(0.974)' : 'scale(1)',
         transition: 'transform 0.12s ease, box-shadow 0.15s ease',
         boxShadow: pressed
-          ? '0 2px 8px rgba(28,25,23,0.06)'
-          : '0 2px 14px rgba(28,25,23,0.07), 0 1px 4px rgba(28,25,23,0.04)',
+          ? '0 1px 6px rgba(26,23,20,0.05)'
+          : '0 2px 14px rgba(26,23,20,0.06), 0 1px 3px rgba(26,23,20,0.04)',
         display: 'flex',
         gap: 14,
         alignItems: 'flex-start',
         animation: 'slideUp 0.2s ease both',
-        marginBottom: 12,
+        marginBottom: 10,
+        borderLeft: `3px solid ${t.color}`,
       }}
     >
-      {/* Text */}
+      {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, letterSpacing: '0.01em' }}>
-          {formatEntryDate(entry.created_at)} · {timeOfDay(entry.created_at)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+          <TypeBadge type={entry.type} />
+          <span style={{ fontSize: 10.5, color: C.muted }}>
+            {formatEntryDate(entry.created_at)}
+          </span>
+          {isStarred && (
+            <Star size={11} fill={C.accent} color={C.accent} strokeWidth={0} style={{ marginLeft: 'auto' }} />
+          )}
         </div>
+
         <div style={{
           fontFamily: "'Playfair Display', serif",
-          fontSize: 17, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 6,
+          fontSize: 16.5, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: entry.body ? 6 : 0,
         }}>
           {entry.title || 'Untitled'}
         </div>
+
         {entry.body && (
           <div style={{
             fontSize: 13, color: C.sub, lineHeight: 1.6,
@@ -98,44 +112,21 @@ export function EntryCard({ entry, onOpen, flat }) {
             {entry.body}
           </div>
         )}
-      </div>
 
-      {/* Thumbnail */}
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: 16,
-          background: gradient,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
-        }}>
-          <span style={{ fontSize: 28 }}>{type.icon}</span>
-        </div>
-
-        {/* Bookmark star — top-right */}
-        {isStarred && (
-          <div style={{
-            position: 'absolute', top: 6, right: 6,
-            width: 22, height: 22, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.92)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-          }}>
-            <Star size={11} fill={C.accent} color={C.accent} strokeWidth={0} />
+        {(entry.excited || 0) > 0 && (
+          <div style={{ display: 'flex', gap: 3, marginTop: 10 }}>
+            {[1,2,3,4,5].map(i => (
+              <div key={i} style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: i <= (entry.excited || 0) ? C.accent : C.border,
+              }} />
+            ))}
           </div>
         )}
-
-        {/* Type badge — bottom-right */}
-        <div style={{
-          position: 'absolute', bottom: 6, right: 6,
-          width: 22, height: 22, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.88)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}>
-          {type.icon}
-        </div>
       </div>
+
+      {/* Icon thumbnail */}
+      <TypeCircle type={entry.type} size={62} />
     </div>
   );
 }

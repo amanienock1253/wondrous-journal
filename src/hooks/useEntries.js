@@ -90,6 +90,20 @@ export function useEntries(userId) {
     return true;
   };
 
+  const deleteAllEntries = async () => {
+    setLoading(true);
+    setError(null);
+    const { error: deleteError } = await supabase.from('entries').delete().eq('user_id', userId);
+    if (deleteError) {
+      setError(deleteError.message);
+      setLoading(false);
+      return false;
+    }
+    setEntries([]);
+    setLoading(false);
+    return true;
+  };
+
   useEffect(() => {
     if (!userId) {
       setEntries([]);
@@ -107,5 +121,6 @@ export function useEntries(userId) {
     addEntry,
     updateEntry,
     deleteEntry,
+    deleteAllEntries,
   };
 }

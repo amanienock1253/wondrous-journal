@@ -1,116 +1,102 @@
 import { useState } from 'react';
-import { Home, BookOpen, Plus, BarChart3 } from 'lucide-react';
+import { Home, Compass, FolderKanban, TrendingUp, Sparkles } from 'lucide-react';
 import { C } from '../constants/theme.js';
 
-export function BottomNav({ screen, setScreen, onCapture }) {
-  const [pressed, setPressed] = useState(null);
+const ITEMS = [
+  { key: 'home',     Icon: Home,         label: 'Home'     },
+  { key: 'discover', Icon: Compass,      label: 'Discover' },
+  { key: 'projects', Icon: FolderKanban, label: 'Projects' },
+  { key: 'insights', Icon: TrendingUp,   label: 'Insights' },
+  { key: 'ai',       Icon: Sparkles,     label: 'AI'       },
+];
 
-  const items = [
-    { key: 'home',     Icon: Home,      label: 'Home'     },
-    { key: 'entries',  Icon: BookOpen,  label: 'Entries'  },
-    { key: 'fab',      fab: true                          },
-    { key: 'insights', Icon: BarChart3, label: 'Insights' },
-    { key: 'ai',       ai: true,        label: 'AI'       },
-  ];
+export function BottomNav({ screen, setScreen }) {
+  const [pressed, setPressed] = useState(null);
 
   return (
     <div style={{
       position: 'fixed',
-      bottom: 18,
+      bottom: 16,
       left: '50%',
       transform: 'translateX(-50%)',
-      width: 'calc(100% - 40px)',
-      maxWidth: 390,
-      height: 66,
-      background: C.surface,
+      width: 'calc(100% - 32px)',
+      maxWidth: 420,
+      height: 64,
+      background: 'rgba(255,255,255,0.97)',
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
       borderRadius: 32,
       border: `1px solid ${C.border}`,
-      boxShadow: '0 8px 32px rgba(28,25,23,0.13), 0 2px 10px rgba(28,25,23,0.07)',
+      boxShadow: '0 8px 40px rgba(26,23,20,0.11), 0 2px 8px rgba(26,23,20,0.05)',
       display: 'flex',
       alignItems: 'center',
       zIndex: 200,
+      padding: '0 6px',
     }}>
-      {items.map((item) => {
-        // Centre FAB
-        if (item.fab) {
-          return (
-            <div key="fab" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <button
-                onClick={onCapture}
-                onMouseDown={() => setPressed('fab')}
-                onMouseUp={() => setPressed(null)}
-                onTouchStart={() => setPressed('fab')}
-                onTouchEnd={() => setPressed(null)}
-                style={{
-                  width: 52, height: 52, borderRadius: '50%',
-                  background: `linear-gradient(145deg, ${C.accent} 0%, #D4BC6A 100%)`,
-                  border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: `0 6px 20px ${C.accent}65`,
-                  transform: pressed === 'fab' ? 'scale(0.88)' : 'scale(1)',
-                  transition: 'transform 0.12s ease',
-                  marginTop: -20,
-                }}
-              >
-                <Plus size={26} color="#fff" strokeWidth={2.5} />
-              </button>
-            </div>
-          );
-        }
+      {ITEMS.map(({ key, Icon, label }) => {
+        const active     = screen === key;
+        const isDiscover = key === 'discover';
 
-        // AI sparkle tab
-        if (item.ai) {
-          const active = screen === 'ai';
-          return (
-            <button
-              key="ai"
-              onClick={() => setScreen('ai')}
-              onMouseDown={() => setPressed('ai')}
-              onMouseUp={() => setPressed(null)}
-              onTouchStart={() => setPressed('ai')}
-              onTouchEnd={() => setPressed(null)}
-              style={{
-                flex: 1, background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                padding: '10px 0 6px', position: 'relative',
-                color: active ? C.accent : C.muted,
-                transform: pressed === 'ai' ? 'scale(0.85)' : 'scale(1)',
-                transition: 'color 0.15s, transform 0.1s',
-              }}
-            >
-              {active && (
-                <div style={{ position: 'absolute', top: 6, width: 20, height: 3, background: C.accent, borderRadius: 2 }} />
-              )}
-              <span style={{ fontSize: 19, lineHeight: 1, marginTop: active ? 2 : 0 }}>✦</span>
-              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>AI</span>
-            </button>
-          );
-        }
-
-        // Regular tabs
-        const active = screen === item.key;
         return (
           <button
-            key={item.key}
-            onClick={() => setScreen(item.key)}
-            onMouseDown={() => setPressed(item.key)}
+            key={key}
+            onClick={() => setScreen(key)}
+            onMouseDown={() => setPressed(key)}
             onMouseUp={() => setPressed(null)}
-            onTouchStart={() => setPressed(item.key)}
+            onTouchStart={() => setPressed(key)}
             onTouchEnd={() => setPressed(null)}
             style={{
-              flex: 1, background: 'none', border: 'none', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              padding: '10px 0 6px', position: 'relative',
-              color: active ? C.accent : C.muted,
-              transform: pressed === item.key ? 'scale(0.85)' : 'scale(1)',
-              transition: 'color 0.15s, transform 0.1s',
+              flex: 1,
+              height: 48,
+              borderRadius: isDiscover ? 24 : 0,
+              margin: isDiscover ? '0 2px' : 0,
+              background: isDiscover
+                ? active
+                  ? 'linear-gradient(145deg, #1C1410, #2A1C14)'
+                  : `${C.accent}12`
+                : 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+              position: 'relative',
+              transform: pressed === key ? 'scale(0.86)' : 'scale(1)',
+              transition: 'transform 0.1s ease, background 0.15s ease',
             }}
           >
-            {active && (
-              <div style={{ position: 'absolute', top: 6, width: 20, height: 3, background: C.accent, borderRadius: 2 }} />
+            {active && !isDiscover && (
+              <div style={{
+                position: 'absolute',
+                top: 4,
+                width: 18,
+                height: 2,
+                background: C.accent,
+                borderRadius: 2,
+              }} />
             )}
-            <item.Icon size={21} strokeWidth={active ? 2.5 : 1.75} />
-            <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+            <Icon
+              size={18}
+              strokeWidth={active ? 2.2 : 1.6}
+              color={
+                isDiscover
+                  ? active ? C.accent : C.accentDark
+                  : active ? C.accent : C.muted
+              }
+              style={{ marginTop: active && !isDiscover ? 2 : 0 }}
+            />
+            <span style={{
+              fontSize: 9,
+              fontWeight: active ? 700 : 400,
+              letterSpacing: '0.02em',
+              color: isDiscover
+                ? active ? C.accent : C.accentDark
+                : active ? C.accent : C.muted,
+            }}>
+              {label}
+            </span>
           </button>
         );
       })}
