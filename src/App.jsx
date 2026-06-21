@@ -11,25 +11,31 @@ import { ScoutScreen } from './screens/ScoutScreen.jsx';
 import { DetailScreen } from './screens/DetailScreen.jsx';
 import { InsightsScreen } from './screens/InsightsScreen.jsx';
 import { SettingsScreen } from './screens/SettingsScreen.jsx';
+import { AIScreen } from './screens/AIScreen.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
 import { SideNav } from './components/SideNav.jsx';
 import { Toast } from './components/Toast.jsx';
+import { AIChat } from './components/AIChat.jsx';
 import { C } from './constants/theme.js';
 
 // Screens that show BottomNav on mobile.
-const NAV_SCREENS = new Set(['home', 'entries', 'insights', 'settings']);
+const NAV_SCREENS = new Set(['home', 'entries', 'insights', 'ai', 'settings']);
 
 export default function App() {
   const { session, initializing, authLoading, authError, signIn, signUp, signOut } = useAuth();
   const { isMobile, isDesktop, isWide } = useBreakpoint();
 
-  const [screen, setScreen]             = useState('home');
+  const [screen, setScreen]               = useState('home');
   const [selectedEntry, setSelectedEntry] = useState(null);
-  const [rightPanel, setRightPanel]     = useState(null); // 'capture' | 'scout' | null
-  const [toast, setToast]               = useState(null);
-  const [authMode, setAuthMode]         = useState('signin');
+  const [rightPanel, setRightPanel]       = useState(null);
+  const [toast, setToast]                 = useState(null);
+  const [authMode, setAuthMode]           = useState('signin');
 
-  const userId = session?.user?.id;
+  // AI chat state
+  const [aiOpen, setAiOpen]         = useState(false);
+  const [aiFocusEntry, setAiFocus]  = useState(null);
+
+  const userId    = session?.user?.id;
   const userEmail = session?.user?.email;
   const { entries, error: entriesError, addEntry, updateEntry, deleteEntry } = useEntries(userId);
 
@@ -43,6 +49,12 @@ export default function App() {
   const showToast = (message, emoji = '✓') => {
     setToast({ message, emoji });
     window.setTimeout(() => setToast(null), 2500);
+  };
+
+  // Open AI chat — optionally focused on a specific entry
+  const handleOpenAI = (focusEntry = null) => {
+    setAiFocus(focusEntry);
+    setAiOpen(true);
   };
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -107,7 +119,6 @@ export default function App() {
     ? entries.find((e) => e.id === selectedEntry.id) || selectedEntry
     : null;
 
-  // What the sidebar/bottomnav should highlight (ignores 'detail'/'capture'/'scout' sub-screens).
   const mainScreen = NAV_SCREENS.has(screen) ? screen : 'home';
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -154,39 +165,23 @@ export default function App() {
         />
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-          {/* Wide (≥1200px) + home/entries: 3-column split */}
           {isWide && (screen === 'home' || screen === 'entries') ? (
             <>
-              {/* Column 2 — entries list */}
               <div style={{ width: 360, flexShrink: 0, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <HomeScreen
-                  entries={entries}
-                  greeting={greeting}
-                  compact
-                  onCapture={handleCaptureClick}
-                  onOpen={handleOpenEntry}
-                />
+                <HomeScreen entries={entries} greeting={greeting} compact onCapture={handleCaptureClick} onOpen={handleOpenEntry} />
               </div>
-
-              {/* Column 3 — detail / form / dashboard */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
                 {currentEntry && !rightPanel && (
-                  <DetailScreen entry={currentEntry} onBack={() => setSelectedEntry(null)} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />
+                  <DetailScreen entry={currentEntry} onBack={() => setSelectedEntry(null)} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} onAskAI={handleOpenAI} />
                 )}
-                {rightPanel === 'capture' && (
-                  <CaptureScreen onSave={handleAddEntry} onBack={() => setRightPanel(null)} />
-                )}
-                {rightPanel === 'scout' && (
-                  <ScoutScreen onSave={handleAddEntry} onBack={() => setRightPanel(null)} />
-                )}
+                {rightPanel === 'capture' && <CaptureScreen onSave={handleAddEntry} onBack={() => setRightPanel(null)} />}
+                {rightPanel === 'scout'   && <ScoutScreen   onSave={handleAddEntry} onBack={() => setRightPanel(null)} />}
                 {!currentEntry && !rightPanel && (
                   <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onOpen={handleOpenEntry} />
                 )}
               </div>
             </>
           ) : (
-            /* Regular desktop or non-home screens */
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
               {mainScreen === 'home'     && screen !== 'capture' && screen !== 'scout' && !currentEntry && (
                 <HomeScreen entries={entries} greeting={greeting} onCapture={handleCaptureClick} onOpen={handleOpenEntry} />
@@ -196,12 +191,21 @@ export default function App() {
               )}
               {screen === 'capture'  && <CaptureScreen onSave={handleAddEntry} onBack={() => handleNavChange(mainScreen)} />}
               {screen === 'scout'    && <ScoutScreen   onSave={handleAddEntry} onBack={() => handleNavChange(mainScreen)} />}
-              {currentEntry          && <DetailScreen entry={currentEntry} onBack={() => setSelectedEntry(null)} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />}
+              {currentEntry          && <DetailScreen  entry={currentEntry} onBack={() => setSelectedEntry(null)} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} onAskAI={handleOpenAI} />}
               {screen === 'insights' && <InsightsScreen entries={entries} />}
+              {screen === 'ai'       && <AIScreen entries={entries} />}
               {screen === 'settings' && <SettingsScreen onSignOut={signOut} userEmail={userEmail} />}
             </div>
           )}
         </div>
+
+        <AIChat
+          entries={entries}
+          open={aiOpen}
+          onOpen={() => handleOpenAI(null)}
+          onClose={() => setAiOpen(false)}
+          focusEntry={aiFocusEntry}
+        />
 
         {toast && <Toast emoji={toast.emoji} message={toast.message} />}
         {errorBanner}
@@ -216,9 +220,18 @@ export default function App() {
       {screen === 'entries'  && <EntriesScreen entries={entries} onOpen={handleOpenEntry} />}
       {screen === 'capture'  && <CaptureScreen onSave={handleAddEntry} onBack={() => setScreen(mainScreen)} />}
       {screen === 'scout'    && <ScoutScreen   onSave={handleAddEntry} onBack={() => setScreen(mainScreen)} />}
-      {screen === 'detail'   && currentEntry && <DetailScreen entry={currentEntry} onBack={() => setScreen(mainScreen === 'entries' ? 'entries' : 'home')} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} />}
+      {screen === 'detail'   && currentEntry && <DetailScreen entry={currentEntry} onBack={() => setScreen(mainScreen === 'entries' ? 'entries' : 'home')} onDelete={handleDeleteEntry} onUpdate={handleUpdateEntry} showToast={showToast} onAskAI={handleOpenAI} />}
       {screen === 'insights' && <InsightsScreen entries={entries} />}
+      {screen === 'ai'       && <AIScreen entries={entries} />}
       {screen === 'settings' && <SettingsScreen onSignOut={signOut} userEmail={userEmail} />}
+
+      <AIChat
+        entries={entries}
+        open={aiOpen}
+        onOpen={() => handleOpenAI(null)}
+        onClose={() => setAiOpen(false)}
+        focusEntry={aiFocusEntry}
+      />
 
       {toast && <Toast emoji={toast.emoji} message={toast.message} />}
       {NAV_SCREENS.has(screen) && (

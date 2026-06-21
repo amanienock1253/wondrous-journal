@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, BookOpen, Plus, BarChart3, Settings } from 'lucide-react';
+import { Home, BookOpen, Plus, BarChart3 } from 'lucide-react';
 import { C } from '../constants/theme.js';
 
 export function BottomNav({ screen, setScreen, onCapture }) {
@@ -10,7 +10,7 @@ export function BottomNav({ screen, setScreen, onCapture }) {
     { key: 'entries',  Icon: BookOpen,  label: 'Entries'  },
     { key: 'fab',      fab: true                          },
     { key: 'insights', Icon: BarChart3, label: 'Insights' },
-    { key: 'settings', Icon: Settings,  label: 'Settings' },
+    { key: 'ai',       ai: true,        label: 'AI'       },
   ];
 
   return (
@@ -31,6 +31,7 @@ export function BottomNav({ screen, setScreen, onCapture }) {
       zIndex: 200,
     }}>
       {items.map((item) => {
+        // Centre FAB
         if (item.fab) {
           return (
             <div key="fab" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -57,6 +58,36 @@ export function BottomNav({ screen, setScreen, onCapture }) {
           );
         }
 
+        // AI sparkle tab
+        if (item.ai) {
+          const active = screen === 'ai';
+          return (
+            <button
+              key="ai"
+              onClick={() => setScreen('ai')}
+              onMouseDown={() => setPressed('ai')}
+              onMouseUp={() => setPressed(null)}
+              onTouchStart={() => setPressed('ai')}
+              onTouchEnd={() => setPressed(null)}
+              style={{
+                flex: 1, background: 'none', border: 'none', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                padding: '10px 0 6px', position: 'relative',
+                color: active ? C.accent : C.muted,
+                transform: pressed === 'ai' ? 'scale(0.85)' : 'scale(1)',
+                transition: 'color 0.15s, transform 0.1s',
+              }}
+            >
+              {active && (
+                <div style={{ position: 'absolute', top: 6, width: 20, height: 3, background: C.accent, borderRadius: 2 }} />
+              )}
+              <span style={{ fontSize: 19, lineHeight: 1, marginTop: active ? 2 : 0 }}>✦</span>
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>AI</span>
+            </button>
+          );
+        }
+
+        // Regular tabs
         const active = screen === item.key;
         return (
           <button
@@ -69,18 +100,14 @@ export function BottomNav({ screen, setScreen, onCapture }) {
             style={{
               flex: 1, background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              padding: '10px 0 6px',
-              position: 'relative',
+              padding: '10px 0 6px', position: 'relative',
               color: active ? C.accent : C.muted,
               transform: pressed === item.key ? 'scale(0.85)' : 'scale(1)',
               transition: 'color 0.15s, transform 0.1s',
             }}
           >
             {active && (
-              <div style={{
-                position: 'absolute', top: 6, width: 20, height: 3,
-                background: C.accent, borderRadius: 2,
-              }} />
+              <div style={{ position: 'absolute', top: 6, width: 20, height: 3, background: C.accent, borderRadius: 2 }} />
             )}
             <item.Icon size={21} strokeWidth={active ? 2.5 : 1.75} />
             <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>

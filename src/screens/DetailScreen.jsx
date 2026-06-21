@@ -56,7 +56,7 @@ function DeleteSheet({ onClose, onConfirm }) {
   );
 }
 
-export function DetailScreen({ entry, onBack, onDelete, onUpdate }) {
+export function DetailScreen({ entry, onBack, onDelete, onUpdate, onAskAI }) {
   const [editing, setEditing]   = useState(false);
   const [title, setTitle]       = useState(entry.title || '');
   const [body, setBody]         = useState(entry.body   || '');
@@ -273,6 +273,20 @@ export function DetailScreen({ entry, onBack, onDelete, onUpdate }) {
                 ? <div style={{ fontSize, color: C.text, lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
                 : <div style={{ fontSize: 15, color: C.muted, fontStyle: 'italic' }}>No notes. Click Edit to add more.</div>
               }
+              {onAskAI && (
+                <button
+                  onClick={() => onAskAI(entry)}
+                  style={{
+                    marginTop: 32, background: C.accentDim, border: `1px solid ${C.accent}60`,
+                    borderRadius: 14, padding: '13px 20px', cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    color: C.accent, fontSize: 14, fontWeight: 600,
+                  }}
+                >
+                  <span style={{ fontSize: 15 }}>✦</span>
+                  Ask AI about this idea
+                </button>
+              )}
             </>
           )}
         </div>
@@ -375,6 +389,24 @@ export function DetailScreen({ entry, onBack, onDelete, onUpdate }) {
               ? <div style={{ fontSize, color: C.text, lineHeight: 1.92, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
               : <div style={{ fontSize: 15, color: C.muted, fontStyle: 'italic' }}>No notes yet. Tap the pencil to add.</div>
             }
+
+            {/* Ask AI button */}
+            {onAskAI && (
+              <button
+                onClick={() => onAskAI(entry)}
+                style={{
+                  width: '100%', marginTop: 28,
+                  background: C.accentDim, border: `1px solid ${C.accent}60`,
+                  borderRadius: 14, padding: '13px 16px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  color: C.accent, fontSize: 14, fontWeight: 600,
+                  transition: 'background 0.15s',
+                }}
+              >
+                <span style={{ fontSize: 15 }}>✦</span>
+                Ask AI about this idea
+              </button>
+            )}
           </>
         )}
       </div>
