@@ -16,6 +16,7 @@ import { SideNav } from './components/SideNav.jsx';
 import { Toast } from './components/Toast.jsx';
 import { AIChat } from './components/AIChat.jsx';
 import { C } from './constants/theme.js';
+import { useAppConfig, ADMIN_EMAIL } from './hooks/useAppConfig.js';
 
 const NAV_SCREENS = new Set(['home', 'discover', 'projects', 'insights', 'ai', 'settings']);
 
@@ -34,7 +35,11 @@ export default function App() {
 
   const userId    = session?.user?.id;
   const userEmail = session?.user?.email;
+  const isAdmin   = userEmail === ADMIN_EMAIL;
   const { entries, error: entriesError, addEntry, updateEntry, deleteEntry, deleteAllEntries } = useEntries(userId);
+
+  // Silently sync admin's Gemini key from Supabase to localStorage for all users
+  useAppConfig(userId);
 
   const [aiSuggestions, setAiSuggestions] = useState(() => localStorage.getItem('wj_ai_suggestions') !== 'false');
 
@@ -283,6 +288,7 @@ export default function App() {
                 <SettingsScreen
                   onSignOut={signOut}
                   userEmail={userEmail}
+                  isAdmin={isAdmin}
                   entries={entries}
                   onDeleteAll={handleDeleteAll}
                   aiSuggestions={aiSuggestions}
@@ -356,6 +362,7 @@ export default function App() {
         <SettingsScreen
           onSignOut={signOut}
           userEmail={userEmail}
+          isAdmin={isAdmin}
           entries={entries}
           onDeleteAll={handleDeleteAll}
           aiSuggestions={aiSuggestions}

@@ -6,6 +6,7 @@ import {
   Key, Eye, EyeOff, AlertCircle, Loader,
 } from 'lucide-react';
 import { testGeminiKey } from '../lib/gemini.js';
+import { saveGeminiKeyToSupabase, deleteGeminiKeyFromSupabase } from '../hooks/useAppConfig.js';
 import { C } from '../constants/theme.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
@@ -92,7 +93,7 @@ function Toggle({ on, onToggle, disabled }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll, aiSuggestions, onToggleAI, showToast, onBack }) {
+export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], onDeleteAll, aiSuggestions, onToggleAI, showToast, onBack }) {
   const { isDesktop } = useBreakpoint();
 
   // Persisted preferences
@@ -205,23 +206,29 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
     setKeyError('');
     try {
       await testGeminiKey(key);
+      // Save locally for this device
       localStorage.setItem('wj_gemini_key', key);
+      // Save to Supabase so all users benefit transparently
+      await saveGeminiKeyToSupabase(key);
       setGeminiKey(key);
       setKeyStatus('valid');
-      showToast?.('Gemini connected successfully');
+      showToast?.('Gemini active — all users now use your key');
     } catch (err) {
       setKeyStatus('error');
       setKeyError(err.message);
     }
   };
 
-  const handleClearKey = () => {
+  const handleClearKey = async () => {
+    try {
+      await deleteGeminiKeyFromSupabase();
+    } catch {}
     localStorage.removeItem('wj_gemini_key');
     setGeminiKey('');
     setGeminiInput('');
     setKeyStatus('idle');
     setKeyError('');
-    showToast?.('Gemini key removed');
+    showToast?.('Gemini key removed — all users revert to local AI');
   };
 
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'WJ';
@@ -379,8 +386,8 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
           />
         </Section>
 
-        {/* ── AI Integration ── */}
-        <div style={{ marginBottom: 26 }}>
+        {/* ── AI Integration — admin only ── */}
+        {isAdmin && <div style={{ marginBottom: 26 }}>
           <div style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 8 }}>
             AI Integration
           </div>
@@ -533,6 +540,8 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
             </div>
           </div>
         </div>
+
+        }
 
         {/* ── Danger zone ── */}
         <Section title="Danger Zone">
