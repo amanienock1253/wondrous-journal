@@ -1,13 +1,14 @@
 // Gemini 1.5 Flash integration.
 // Called from ai.js when the user has saved a Gemini API key.
 
-// Try models in order — falls through to next if one isn't available on this key
+// Try models in order — falls through to next on quota OR not-found errors
 const MODELS = [
   'gemini-2.0-flash',
   'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
   'gemini-1.5-flash-latest',
-  'gemini-pro',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash-8b-latest',
 ];
 
 const GEMINI_URL = (key, model) =>
@@ -43,13 +44,26 @@ Use markdown for structure when helpful (bold, bullet points). Keep responses un
 
 function friendlyError(raw) {
   const m = (raw || '').toLowerCase();
-  if (m.includes('quota') || m.includes('limit: 0') || m.includes('resource_exhausted'))
-    return 'API quota is 0. Get a key from aistudio.google.com → "Get API key" (not Google Cloud Console).';
   if (m.includes('api key not valid') || m.includes('invalid api key') || m.includes('api_key_invalid'))
-    return 'Invalid API key. Make sure you copied the full key from aistudio.google.com.';
+    return 'Invalid API key — make sure you copied the full key from aistudio.google.com.';
   if (m.includes('permission') || m.includes('forbidden'))
-    return 'Permission denied. Enable the Gemini API for this key at aistudio.google.com.';
+    return 'Permission denied — enable the Gemini API for this key at aistudio.google.com.';
+  if (m.includes('quota') || m.includes('resource_exhausted') || m.includes('limit: 0'))
+    return 'No quota available on any Gemini model. Your region may have restricted access — try enabling billing at aistudio.google.com.';
   return raw;
+}
+
+function isRetryable(errMsg) {
+  const m = errMsg.toLowerCase();
+  return (
+    m.includes('not found') ||
+    m.includes('not supported') ||
+    m.includes('deprecated') ||
+    m.includes('resource_exhausted') ||
+    m.includes('quota') ||
+    m.includes('limit: 0') ||
+    m.includes('429')
+  );
 }
 
 async function callGemini(apiKey, model, body) {
@@ -59,30 +73,30 @@ async function callGemini(apiKey, model, body) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(friendlyError(data?.error?.message) || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const msg = data?.error?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
   return data;
 }
 
-// Try each model in order, return first that works
+// Try each model in order — skip on quota OR not-found, stop on auth errors
 async function callWithFallback(apiKey, body) {
   let lastError;
   for (const model of MODELS) {
     try {
-      const data = await callGemini(apiKey, model, body);
-      return data;
+      return await callGemini(apiKey, model, body);
     } catch (err) {
-      // Only move to next model on "not found" errors
-      if (err.message.toLowerCase().includes('not found') ||
-          err.message.toLowerCase().includes('not supported') ||
-          err.message.toLowerCase().includes('deprecated')) {
+      if (isRetryable(err.message)) {
         lastError = err;
-        continue;
+        continue; // try next model
       }
-      // Auth errors, quota errors etc — throw immediately
-      throw err;
+      // Auth / permission error — no point trying other models
+      throw new Error(friendlyError(err.message));
     }
   }
-  throw lastError || new Error('No supported Gemini model found for this API key.');
+  // All models exhausted
+  throw new Error(friendlyError(lastError?.message || 'All Gemini models unavailable for this key.'));
 }
 
 export async function askGemini(apiKey, conversationMessages, entries, focusEntry = null) {
