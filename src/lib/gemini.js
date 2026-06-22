@@ -1,8 +1,17 @@
 // Gemini 1.5 Flash integration.
 // Called from ai.js when the user has saved a Gemini API key.
 
-const GEMINI_URL = key =>
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+// Try models in order — falls through to next if one isn't available on this key
+const MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-pro',
+];
+
+const GEMINI_URL = (key, model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
 function buildSystemPrompt(entries, focusEntry) {
   const entrySummaries = entries
@@ -32,8 +41,40 @@ ${entrySummaries || 'No discoveries yet.'}${focusContext}
 Use markdown for structure when helpful (bold, bullet points). Keep responses under 300 words unless a detailed breakdown is explicitly requested.`;
 }
 
+async function callGemini(apiKey, model, body) {
+  const res = await fetch(GEMINI_URL(apiKey, model), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// Try each model in order, return first that works
+async function callWithFallback(apiKey, body) {
+  let lastError;
+  for (const model of MODELS) {
+    try {
+      const data = await callGemini(apiKey, model, body);
+      return data;
+    } catch (err) {
+      // Only move to next model on "not found" errors
+      if (err.message.toLowerCase().includes('not found') ||
+          err.message.toLowerCase().includes('not supported') ||
+          err.message.toLowerCase().includes('deprecated')) {
+        lastError = err;
+        continue;
+      }
+      // Auth errors, quota errors etc — throw immediately
+      throw err;
+    }
+  }
+  throw lastError || new Error('No supported Gemini model found for this API key.');
+}
+
 export async function askGemini(apiKey, conversationMessages, entries, focusEntry = null) {
-  // Map message history to Gemini's role format (user / model)
   const history = conversationMessages.map((m, idx) => {
     const isFirst = idx === 0 && m.role === 'user';
     const text = isFirst
@@ -45,47 +86,21 @@ export async function askGemini(apiKey, conversationMessages, entries, focusEntr
     };
   });
 
-  // Gemini requires alternating user/model turns — ensure we end on a user turn
-  const lastRole = history[history.length - 1]?.role;
-  if (lastRole !== 'user') {
-    throw new Error('Conversation must end with a user message.');
-  }
-
-  const res = await fetch(GEMINI_URL(apiKey), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: history,
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 1024,
-      },
-    }),
+  const data = await callWithFallback(apiKey, {
+    contents: history,
+    generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
   });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    const msg = data?.error?.message || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
 
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty response from Gemini.');
   return text;
 }
 
-// Lightweight key validation — sends a minimal ping
+// Lightweight key validation — tries each model until one responds
 export async function testGeminiKey(apiKey) {
-  const res = await fetch(GEMINI_URL(apiKey), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: 'Reply with just the word: ready' }] }],
-      generationConfig: { maxOutputTokens: 10 },
-    }),
+  await callWithFallback(apiKey, {
+    contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ready' }] }],
+    generationConfig: { maxOutputTokens: 10 },
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
   return true;
 }
