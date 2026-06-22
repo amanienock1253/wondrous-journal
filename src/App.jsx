@@ -288,6 +288,7 @@ export default function App() {
                   aiSuggestions={aiSuggestions}
                   onToggleAI={handleToggleAI}
                   showToast={showToast}
+                  onBack={() => handleNavChange('home')}
                 />
               )}
             </div>
@@ -360,6 +361,7 @@ export default function App() {
           aiSuggestions={aiSuggestions}
           onToggleAI={handleToggleAI}
           showToast={showToast}
+          onBack={() => setScreen('home')}
         />
       )}
 
@@ -373,7 +375,7 @@ export default function App() {
 
       {toast && <Toast emoji={toast.emoji} message={toast.message} />}
 
-      {NAV_SCREENS.has(screen) && screen !== 'settings' && (
+      {NAV_SCREENS.has(screen) && (
         <BottomNav screen={screen} setScreen={handleNavChange} />
       )}
       {errorBanner}

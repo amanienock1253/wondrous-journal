@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  Sparkles, LogOut, Bell, Moon, Shield, Download, Trash2,
+  Sparkles, LogOut, Bell, Moon, Shield, Trash2,
   ChevronRight, Globe, Lock, Database, Palette, Zap,
-  FileText, Star, Sun, CheckCircle2,
+  FileText, Star, Sun, CheckCircle2, ChevronLeft,
 } from 'lucide-react';
 import { C } from '../constants/theme.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -90,7 +90,7 @@ function Toggle({ on, onToggle, disabled }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll, aiSuggestions, onToggleAI, showToast }) {
+export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll, aiSuggestions, onToggleAI, showToast, onBack }) {
   const { isDesktop } = useBreakpoint();
 
   // Persisted preferences
@@ -196,11 +196,27 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
       <div className="hide-scroll" style={{ flex: 1, overflowY: 'auto', padding: px }}>
 
         {/* Title */}
-        <div style={{ marginBottom: 26 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: isDesktop ? 32 : 26, fontWeight: 700, color: C.text }}>
-            Settings
+        <div style={{ marginBottom: 26, display: 'flex', alignItems: 'center', gap: 14 }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{
+                width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                background: C.surface, border: `1px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: C.sub,
+                boxShadow: '0 1px 4px rgba(26,23,20,0.06)',
+              }}
+            >
+              <ChevronLeft size={18} strokeWidth={2} />
+            </button>
+          )}
+          <div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: isDesktop ? 32 : 26, fontWeight: 700, color: C.text }}>
+              Settings
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Customize your experience</div>
           </div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Customize your experience</div>
         </div>
 
         {/* Profile hero */}
