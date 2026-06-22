@@ -31,6 +31,8 @@ textarea,
 input {
   font-family: inherit;
   color: #1A1714;
+  /* Prevent iOS Safari from auto-zooming on focus */
+  font-size: max(16px, 1em);
 }
 
 input::placeholder,

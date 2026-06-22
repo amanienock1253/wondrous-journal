@@ -3,12 +3,12 @@
 
 // Try models in order — falls through to next on quota OR not-found errors
 const MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
   'gemini-1.5-flash-latest',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-flash-8b-latest',
+  'gemini-1.5-pro',
+  'gemini-1.5-pro-latest',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
 ];
 
 const GEMINI_URL = (key, model) =>
@@ -48,8 +48,9 @@ function friendlyError(raw) {
     return 'Invalid API key — make sure you copied the full key from aistudio.google.com.';
   if (m.includes('permission') || m.includes('forbidden'))
     return 'Permission denied — enable the Gemini API for this key at aistudio.google.com.';
-  if (m.includes('quota') || m.includes('resource_exhausted') || m.includes('limit: 0'))
-    return 'No quota available on any Gemini model. Your region may have restricted access — try enabling billing at aistudio.google.com.';
+  if (m.includes('quota') || m.includes('resource_exhausted') || m.includes('limit: 0') ||
+      m.includes('not found') || m.includes('not supported'))
+    return 'Your Gemini key has no quota on any available model. Go to aistudio.google.com → your project → enable billing (free tier still works once billing is set up).';
   return raw;
 }
 
