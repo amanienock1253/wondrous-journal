@@ -41,6 +41,17 @@ ${entrySummaries || 'No discoveries yet.'}${focusContext}
 Use markdown for structure when helpful (bold, bullet points). Keep responses under 300 words unless a detailed breakdown is explicitly requested.`;
 }
 
+function friendlyError(raw) {
+  const m = (raw || '').toLowerCase();
+  if (m.includes('quota') || m.includes('limit: 0') || m.includes('resource_exhausted'))
+    return 'API quota is 0. Get a key from aistudio.google.com → "Get API key" (not Google Cloud Console).';
+  if (m.includes('api key not valid') || m.includes('invalid api key') || m.includes('api_key_invalid'))
+    return 'Invalid API key. Make sure you copied the full key from aistudio.google.com.';
+  if (m.includes('permission') || m.includes('forbidden'))
+    return 'Permission denied. Enable the Gemini API for this key at aistudio.google.com.';
+  return raw;
+}
+
 async function callGemini(apiKey, model, body) {
   const res = await fetch(GEMINI_URL(apiKey, model), {
     method: 'POST',
@@ -48,7 +59,7 @@ async function callGemini(apiKey, model, body) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(friendlyError(data?.error?.message) || `HTTP ${res.status}`);
   return data;
 }
 
