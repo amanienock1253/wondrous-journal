@@ -134,6 +134,7 @@ export function AIScreen({ entries }) {
   const [input, setInput]     = useState('');
   const [kbH, setKbH]         = useState(0);
   const [showModes, setShowModes] = useState(true);
+  const usingGemini = !!localStorage.getItem('wj_gemini_key');
   const msgsEndRef             = useRef(null);
   const inputRef               = useRef(null);
   const { isDesktop }          = useBreakpoint();
@@ -193,7 +194,15 @@ export function AIScreen({ entries }) {
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: C.text, lineHeight: 1.1 }}>
                 AI Co-Founder
               </div>
-              <div style={{ fontSize: 12, color: C.muted }}>Your startup advisor powered by AI</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                <div style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: usingGemini ? '#2E7D52' : C.accent,
+                }} />
+                <span style={{ fontSize: 12, color: C.muted }}>
+                  {usingGemini ? 'Gemini 1.5 Flash' : 'Local AI'}
+                </span>
+              </div>
             </div>
           </div>
 

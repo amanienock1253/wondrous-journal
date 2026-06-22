@@ -1,6 +1,7 @@
-// Local AI engine for Wondrous Journal.
-// No API key needed — all intelligence comes from analyzing the user's own entries.
-// Detects what the user is asking, runs analysis on their journal, returns a natural response.
+// AI engine for Wondrous Journal.
+// Routes to Gemini 1.5 Flash when a key is saved in localStorage,
+// otherwise falls back to the fully local keyword-based engine.
+import { askGemini } from './gemini.js';
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -459,6 +460,22 @@ function respondGeneral(q, entries) {
 // ─────────────────────────────────────────────
 
 export async function askJournalAI(conversationMessages, entries, focusEntry = null) {
+  // Try Gemini first if the user has saved a key
+  const geminiKey = localStorage.getItem('wj_gemini_key');
+  if (geminiKey) {
+    try {
+      return await askGemini(geminiKey, conversationMessages, entries, focusEntry);
+    } catch (err) {
+      console.warn('Gemini failed, falling back to local AI:', err.message);
+      return `⚠️ Gemini error: ${err.message}\n\nFalling back to local AI…\n\n` +
+        await localAI(conversationMessages, entries, focusEntry);
+    }
+  }
+
+  return localAI(conversationMessages, entries, focusEntry);
+}
+
+async function localAI(conversationMessages, entries, focusEntry) {
   // Get the latest user message
   const lastUser = [...conversationMessages].reverse().find(m => m.role === 'user');
   if (!lastUser) return "Ask me anything about your journal.";
@@ -495,3 +512,4 @@ export async function askJournalAI(conversationMessages, entries, focusEntry = n
     default:                 return respondGeneral(q, entries);
   }
 }
+

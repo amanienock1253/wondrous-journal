@@ -3,7 +3,9 @@ import {
   Sparkles, LogOut, Bell, Moon, Shield, Trash2,
   ChevronRight, Globe, Lock, Database, Palette, Zap,
   FileText, Star, Sun, CheckCircle2, ChevronLeft,
+  Key, Eye, EyeOff, AlertCircle, Loader,
 } from 'lucide-react';
+import { testGeminiKey } from '../lib/gemini.js';
 import { C } from '../constants/theme.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
@@ -102,6 +104,14 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
   const [deleting,       setDeleting]     = useState(false);
   const [exported,       setExported]     = useState(false);
 
+  // Gemini API key
+  const [geminiKey,      setGeminiKey]   = useState(() => localStorage.getItem('wj_gemini_key') || '');
+  const [geminiInput,    setGeminiInput] = useState(() => localStorage.getItem('wj_gemini_key') || '');
+  const [showKey,        setShowKey]     = useState(false);
+  const [keyStatus,      setKeyStatus]   = useState(localStorage.getItem('wj_gemini_key') ? 'saved' : 'idle');
+  // idle | saved | testing | valid | error
+  const [keyError,       setKeyError]    = useState('');
+
   // Check notification permission on mount
   useEffect(() => {
     if (!('Notification' in window)) { setNotifStatus('unsupported'); return; }
@@ -186,6 +196,32 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
     await onDeleteAll?.();
     setDeleting(false);
     setConfirm(false);
+  };
+
+  const handleSaveKey = async () => {
+    const key = geminiInput.trim();
+    if (!key) return;
+    setKeyStatus('testing');
+    setKeyError('');
+    try {
+      await testGeminiKey(key);
+      localStorage.setItem('wj_gemini_key', key);
+      setGeminiKey(key);
+      setKeyStatus('valid');
+      showToast?.('Gemini connected successfully');
+    } catch (err) {
+      setKeyStatus('error');
+      setKeyError(err.message);
+    }
+  };
+
+  const handleClearKey = () => {
+    localStorage.removeItem('wj_gemini_key');
+    setGeminiKey('');
+    setGeminiInput('');
+    setKeyStatus('idle');
+    setKeyError('');
+    showToast?.('Gemini key removed');
   };
 
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'WJ';
@@ -342,6 +378,161 @@ export function SettingsScreen({ onSignOut, userEmail, entries = [], onDeleteAll
             danger
           />
         </Section>
+
+        {/* ── AI Integration ── */}
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 8 }}>
+            AI Integration
+          </div>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden' }}>
+
+            {/* Header row */}
+            <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${C.border}` }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                background: `${C.accent}14`, border: `1px solid ${C.accent}1A`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Key size={15} color={C.accent} strokeWidth={2} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Google Gemini API</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 1.5 }}>
+                  {geminiKey
+                    ? 'Gemini 1.5 Flash is active — your AI uses your key'
+                    : 'Add your key to unlock real Gemini AI responses'}
+                </div>
+              </div>
+              {/* Status badge */}
+              {keyStatus === 'valid' || (keyStatus === 'saved' && geminiKey) ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  background: '#2E7D5212', border: '1px solid #2E7D5230',
+                  borderRadius: 7, padding: '3px 9px',
+                }}>
+                  <CheckCircle2 size={11} color="#2E7D52" strokeWidth={2.5} />
+                  <span style={{ fontSize: 11, color: '#2E7D52', fontWeight: 700 }}>Active</span>
+                </div>
+              ) : keyStatus === 'error' ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  background: `${C.error}12`, border: `1px solid ${C.error}30`,
+                  borderRadius: 7, padding: '3px 9px',
+                }}>
+                  <AlertCircle size={11} color={C.error} strokeWidth={2.5} />
+                  <span style={{ fontSize: 11, color: C.error, fontWeight: 700 }}>Error</span>
+                </div>
+              ) : (
+                <div style={{
+                  fontSize: 11, color: C.muted, fontWeight: 500,
+                  background: C.bg, border: `1px solid ${C.border}`,
+                  borderRadius: 7, padding: '3px 9px',
+                }}>
+                  Local AI
+                </div>
+              )}
+            </div>
+
+            {/* Key input */}
+            <div style={{ padding: '16px 18px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 8 }}>
+                Gemini API Key
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={geminiInput}
+                    onChange={e => { setGeminiInput(e.target.value); setKeyStatus(geminiKey ? 'saved' : 'idle'); setKeyError(''); }}
+                    placeholder="AIza…"
+                    style={{
+                      width: '100%', background: C.bg,
+                      border: `1.5px solid ${keyStatus === 'error' ? C.error : keyStatus === 'valid' ? '#2E7D52' : C.border}`,
+                      borderRadius: 12, padding: '10px 42px 10px 14px',
+                      fontSize: 13.5, color: C.text, outline: 'none',
+                      fontFamily: geminiInput && !showKey ? 'monospace' : 'inherit',
+                      letterSpacing: geminiInput && !showKey ? '0.1em' : 'normal',
+                    }}
+                  />
+                  <button
+                    onClick={() => setShowKey(v => !v)}
+                    style={{
+                      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: C.muted, padding: 2,
+                    }}
+                  >
+                    {showKey
+                      ? <EyeOff size={15} strokeWidth={1.75} />
+                      : <Eye size={15} strokeWidth={1.75} />
+                    }
+                  </button>
+                </div>
+                <button
+                  onClick={handleSaveKey}
+                  disabled={!geminiInput.trim() || keyStatus === 'testing'}
+                  style={{
+                    padding: '10px 16px', borderRadius: 12, border: 'none',
+                    background: geminiInput.trim() && keyStatus !== 'testing'
+                      ? 'linear-gradient(135deg, #1C1410, #2A1C14)'
+                      : C.border,
+                    color: geminiInput.trim() && keyStatus !== 'testing' ? C.accent : C.muted,
+                    fontSize: 13, fontWeight: 700, cursor: geminiInput.trim() && keyStatus !== 'testing' ? 'pointer' : 'default',
+                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {keyStatus === 'testing'
+                    ? <><Loader size={13} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> Testing…</>
+                    : keyStatus === 'valid' || (keyStatus === 'saved' && geminiKey === geminiInput.trim())
+                    ? <><CheckCircle2 size={13} strokeWidth={2.5} /> Saved</>
+                    : 'Save & Test'
+                  }
+                </button>
+              </div>
+
+              {/* Error message */}
+              {keyStatus === 'error' && keyError && (
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 7,
+                  background: `${C.error}0D`, border: `1px solid ${C.error}25`,
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 10,
+                }}>
+                  <AlertCircle size={14} color={C.error} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 12.5, color: C.error, lineHeight: 1.5 }}>{keyError}</span>
+                </div>
+              )}
+
+              {/* Clear key */}
+              {geminiKey && (
+                <button
+                  onClick={handleClearKey}
+                  style={{
+                    background: 'none', border: `1px solid ${C.border}`, borderRadius: 10,
+                    padding: '7px 14px', fontSize: 12.5, color: C.muted,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                    transition: 'border-color 0.12s',
+                  }}
+                >
+                  Remove key — revert to local AI
+                </button>
+              )}
+
+              {/* Help text */}
+              <div style={{
+                marginTop: 12, padding: '10px 14px',
+                background: C.accentDim, border: `1px solid ${C.accent}25`,
+                borderRadius: 10,
+              }}>
+                <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.65 }}>
+                  Get a free key at{' '}
+                  <span style={{ color: C.accent, fontWeight: 600 }}>aistudio.google.com</span>
+                  {' '}→ Create API Key. Your key is stored locally and never sent anywhere except Google.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* ── Danger zone ── */}
         <Section title="Danger Zone">
