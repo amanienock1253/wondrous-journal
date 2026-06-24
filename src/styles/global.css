@@ -40,6 +40,12 @@ textarea::placeholder {
   color: #9E8C7A;
 }
 
+/* Story composer placeholder */
+.story-input::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.45) !important;
+}
+
 ::selection {
   background: rgba(201, 168, 76, 0.22);
 }

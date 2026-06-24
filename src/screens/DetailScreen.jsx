@@ -1,10 +1,73 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, Sparkles, MoreHorizontal, Pencil, X, Check, Trash2, Image, Type, List } from 'lucide-react';
+import {
+  ChevronLeft, Sparkles, MoreHorizontal, Pencil, X, Check, Trash2,
+  Image, Type, List,
+  FileText, AlertTriangle, Lightbulb, Users, AlertCircle, HelpCircle,
+  Zap, Clock, MapPin, TrendingUp, BookOpen, Star, Eye, Target,
+} from 'lucide-react';
 import { C, typeMap } from '../constants/theme.js';
 import { formatEntryDate, timeOfDay } from '../utils/time.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 const FONT_SIZES = [14, 16, 19];
+
+/* ── Body parser: splits "Label: content" pairs into sections ── */
+const SECTION_ICONS = {
+  description:      FileText,
+  problem:          AlertTriangle,
+  'project idea':   Lightbulb,
+  idea:             Lightbulb,
+  solution:         Zap,
+  'who affected':   Users,
+  "who's affected": Users,
+  affected:         Users,
+  severity:         AlertCircle,
+  impact:           TrendingUp,
+  when:             Clock,
+  where:            MapPin,
+  why:              HelpCircle,
+  how:              Zap,
+  lesson:           BookOpen,
+  observation:      Eye,
+  opportunity:      Target,
+  inspiration:      Star,
+  notes:            FileText,
+  context:          FileText,
+  background:       FileText,
+};
+
+function getSectionIcon(label) {
+  const key = label.toLowerCase();
+  for (const [k, Icon] of Object.entries(SECTION_ICONS)) {
+    if (key.includes(k)) return Icon;
+  }
+  return FileText;
+}
+
+function parseBody(text) {
+  if (!text || !text.trim()) return null;
+  const lines = text.split('\n');
+  const labelRe = /^([A-Za-z][A-Za-z\s'&/-]{0,34}):\s*(.*)$/;
+  let hasLabels = false;
+  const sections = [];
+  let current = null;
+  for (const raw of lines) {
+    const m = raw.match(labelRe);
+    if (m) {
+      hasLabels = true;
+      if (current) sections.push(current);
+      current = { label: m[1].trim(), content: m[2].trim() };
+    } else if (current) {
+      current.content += (current.content ? '\n' : '') + raw;
+    } else {
+      const last = sections[sections.length - 1];
+      if (last && last.label === null) last.content += '\n' + raw;
+      else sections.push({ label: null, content: raw });
+    }
+  }
+  if (current) sections.push(current);
+  return hasLabels ? sections.filter(s => s.content.trim() || s.label) : null;
+}
 
 async function compressImage(file) {
   return new Promise((resolve) => {
@@ -24,6 +87,154 @@ async function compressImage(file) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+/* ── Structured body section card ── */
+function SectionCard({ label, content, typeColor }) {
+  const Icon = getSectionIcon(label);
+  return (
+    <div style={{
+      background: C.surface,
+      border: `1px solid ${C.border}`,
+      borderRadius: 16,
+      padding: '14px 16px',
+      marginBottom: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: content ? 8 : 0 }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+          background: `${typeColor}15`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon size={13} color={typeColor} strokeWidth={2} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: typeColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {label}
+        </span>
+      </div>
+      {content ? (
+        <div style={{ fontSize: 15, color: C.text, lineHeight: 1.7, whiteSpace: 'pre-wrap', paddingLeft: 2 }}>
+          {content.trim()}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── Excitement dots ── */
+function ExcitedDots({ level }) {
+  if (!level) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: i <= level ? C.accent : C.border,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+/* ── Combined view-mode body (mobile + desktop) ── */
+function ViewBody({ entry, photo, fontSize, onRemovePhoto, onAskAI, t, desktop }) {
+  const sections = parseBody(entry.body);
+  const titleSize = desktop ? 28 : 26;
+
+  return (
+    <>
+      {/* Date */}
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 12, letterSpacing: '0.01em' }}>
+        {formatEntryDate(entry.created_at)} · {timeOfDay(entry.created_at)}
+      </div>
+
+      {/* Type chip + excited dots row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: `${t.color}12`, border: `1px solid ${t.color}30`,
+          borderRadius: 8, padding: '5px 11px',
+        }}>
+          <span style={{ fontSize: 13 }}>{t.icon}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: t.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.label}</span>
+        </div>
+        <ExcitedDots level={entry.excited} />
+      </div>
+
+      {/* Title */}
+      <h1 style={{
+        fontFamily: "'Playfair Display', serif",
+        fontSize: titleSize, fontWeight: 700, color: C.text,
+        lineHeight: 1.25, marginBottom: 20,
+      }}>
+        {entry.title || 'Untitled'}
+      </h1>
+
+      {/* Photo */}
+      {photo && (
+        <div style={{ position: 'relative', marginBottom: 18 }}>
+          <img
+            src={photo} alt=""
+            style={{ width: '100%', maxHeight: desktop ? 360 : 220, borderRadius: 16, display: 'block', objectFit: 'cover' }}
+          />
+          <button
+            onClick={onRemovePhoto}
+            style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(28,25,23,0.65)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <X size={13} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
+      {/* Body */}
+      {sections ? (
+        <div style={{ marginBottom: 8 }}>
+          {sections.map((s, i) =>
+            s.label
+              ? <SectionCard key={i} label={s.label} content={s.content} typeColor={t.color} />
+              : s.content.trim()
+                ? <div key={i} style={{ fontSize: 15, color: C.text, lineHeight: 1.8, whiteSpace: 'pre-wrap', marginBottom: 10 }}>{s.content.trim()}</div>
+                : null
+          )}
+        </div>
+      ) : entry.body ? (
+        <div style={{
+          background: C.surface, border: `1px solid ${C.border}`,
+          borderRadius: 16, padding: '16px 18px', marginBottom: 8,
+        }}>
+          <div style={{ fontSize, color: C.text, lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
+        </div>
+      ) : (
+        <div style={{
+          background: C.surface, border: `1px dashed ${C.border}`,
+          borderRadius: 16, padding: '20px 18px', textAlign: 'center', marginBottom: 8,
+        }}>
+          <div style={{ fontSize: 14, color: C.muted, fontStyle: 'italic' }}>
+            No notes yet. Tap the pencil to add details.
+          </div>
+        </div>
+      )}
+
+      {/* Ask AI */}
+      {onAskAI && (
+        <button
+          onClick={() => onAskAI(entry)}
+          style={{
+            width: desktop ? 'auto' : '100%',
+            marginTop: 20,
+            background: C.accentDim, border: `1px solid ${C.accent}60`,
+            borderRadius: 14, padding: '13px 20px', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center',
+            justifyContent: desktop ? 'flex-start' : 'center',
+            gap: 8, color: C.accent, fontSize: 14, fontWeight: 600,
+          }}
+        >
+          <Sparkles size={15} strokeWidth={2} />
+          Ask AI about this
+        </button>
+      )}
+    </>
+  );
 }
 
 function DeleteSheet({ onClose, onConfirm }) {
@@ -258,36 +469,15 @@ export function DetailScreen({ entry, onBack, onDelete, onUpdate, onAskAI }) {
               />
             </>
           ) : (
-            <>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${t.color}12`, border: `1px solid ${t.color}30`, borderRadius: 8, padding: '4px 10px', marginBottom: 14 }}>
-                <span style={{ fontSize: 12 }}>{t.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: t.color }}>{t.label}</span>
-              </div>
-              <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: C.text, lineHeight: 1.25, marginBottom: 22 }}>
-                {entry.title || 'Untitled'}
-              </h1>
-              {photo && (
-                <img src={photo} alt="" style={{ maxWidth: '100%', maxHeight: 360, borderRadius: 16, display: 'block', objectFit: 'cover', marginBottom: 22 }} />
-              )}
-              {entry.body
-                ? <div style={{ fontSize, color: C.text, lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
-                : <div style={{ fontSize: 15, color: C.muted, fontStyle: 'italic' }}>No notes. Click Edit to add more.</div>
-              }
-              {onAskAI && (
-                <button
-                  onClick={() => onAskAI(entry)}
-                  style={{
-                    marginTop: 32, background: C.accentDim, border: `1px solid ${C.accent}60`,
-                    borderRadius: 14, padding: '13px 20px', cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: 8,
-                    color: C.accent, fontSize: 14, fontWeight: 600,
-                  }}
-                >
-                  <span style={{ fontSize: 15 }}>✦</span>
-                  Ask AI about this idea
-                </button>
-              )}
-            </>
+            <ViewBody
+              entry={entry}
+              photo={photo}
+              fontSize={fontSize}
+              onRemovePhoto={handleRemovePhoto}
+              onAskAI={onAskAI}
+              t={t}
+              desktop
+            />
           )}
         </div>
 
@@ -322,11 +512,6 @@ export function DetailScreen({ entry, onBack, onDelete, onUpdate, onAskAI }) {
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px 24px 140px' }}>
-        {/* Date + time */}
-        <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, letterSpacing: '0.01em' }}>
-          {formatEntryDate(entry.created_at)} · {timeOfDay(entry.created_at)}
-        </div>
-
         {editing ? (
           <>
             <input
@@ -366,48 +551,14 @@ export function DetailScreen({ entry, onBack, onDelete, onUpdate, onAskAI }) {
             />
           </>
         ) : (
-          <>
-            <h1 style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: 26, fontWeight: 700, color: C.text,
-              lineHeight: 1.25, marginBottom: 18,
-            }}>
-              {entry.title || 'Untitled'}
-            </h1>
-            {photo && (
-              <div style={{ position: 'relative', marginBottom: 18 }}>
-                <img src={photo} alt="" style={{ width: '100%', maxHeight: 220, borderRadius: 16, display: 'block', objectFit: 'cover' }} />
-                <button
-                  onClick={handleRemovePhoto}
-                  style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(28,25,23,0.60)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <X size={13} strokeWidth={2.5} />
-                </button>
-              </div>
-            )}
-            {entry.body
-              ? <div style={{ fontSize, color: C.text, lineHeight: 1.92, whiteSpace: 'pre-wrap' }}>{entry.body}</div>
-              : <div style={{ fontSize: 15, color: C.muted, fontStyle: 'italic' }}>No notes yet. Tap the pencil to add.</div>
-            }
-
-            {/* Ask AI button */}
-            {onAskAI && (
-              <button
-                onClick={() => onAskAI(entry)}
-                style={{
-                  width: '100%', marginTop: 28,
-                  background: C.accentDim, border: `1px solid ${C.accent}60`,
-                  borderRadius: 14, padding: '13px 16px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  color: C.accent, fontSize: 14, fontWeight: 600,
-                  transition: 'background 0.15s',
-                }}
-              >
-                <span style={{ fontSize: 15 }}>✦</span>
-                Ask AI about this idea
-              </button>
-            )}
-          </>
+          <ViewBody
+            entry={entry}
+            photo={photo}
+            fontSize={fontSize}
+            onRemovePhoto={handleRemovePhoto}
+            onAskAI={onAskAI}
+            t={t}
+          />
         )}
       </div>
 
