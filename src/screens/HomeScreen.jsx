@@ -4,6 +4,7 @@ import { C } from '../constants/theme.js';
 import { TypeCircle, TypeBadge } from '../components/TypeIcon.jsx';
 import { StoriesRow } from '../components/StoriesRow.jsx';
 import { StoryViewer } from '../components/StoryViewer.jsx';
+import { useCommunityStories } from '../hooks/useCommunityStories.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 const QUOTES = [
@@ -142,10 +143,12 @@ function CompactPanel({ entries, onOpen, onDiscover }) {
   );
 }
 
-export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, compact, showAISuggestion = true, userEmail }) {
+export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, compact, showAISuggestion = true, userEmail, userId }) {
   const { isDesktop } = useBreakpoint();
 
-  const [storyIdx,  setStoryIdx]  = useState(null); // null = closed, number = open at index
+  const [storyIdx,    setStoryIdx]    = useState(null);
+  const [storyList,   setStoryList]   = useState([]);
+  const { stories: communityStories, loading: storiesLoading } = useCommunityStories(userId);
 
   const greeting    = useMemo(() => getGreeting(), []);
   const quote       = useMemo(() => getDailyQuote(), []);
@@ -205,13 +208,18 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
           </div>
         </div>
 
-        {/* ── Stories Row ── */}
+        {/* ── Stories Row (community) ── */}
         {!isDesktop && (
           <StoriesRow
-            entries={entries}
+            communityStories={communityStories}
+            loading={storiesLoading}
             userEmail={userEmail}
+            userId={userId}
             onAddNew={onDiscover}
-            onViewStory={entry => setStoryIdx(entries.indexOf(entry))}
+            onViewStory={entry => {
+              setStoryList(communityStories);
+              setStoryIdx(communityStories.indexOf(entry));
+            }}
           />
         )}
 
@@ -509,11 +517,11 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
       </div>
 
       {/* ── Story Viewer overlay ── */}
-      {storyIdx !== null && entries.length > 0 && (
+      {storyIdx !== null && storyList.length > 0 && (
         <StoryViewer
-          stories={entries}
+          stories={storyList}
           initialIndex={Math.max(0, storyIdx)}
-          onClose={() => setStoryIdx(null)}
+          onClose={() => { setStoryIdx(null); setStoryList([]); }}
           onOpen={onOpen}
         />
       )}

@@ -262,6 +262,7 @@ export default function App() {
                   onSettings={() => setScreen('settings')}
                   showAISuggestion={aiSuggestions}
                   userEmail={userEmail}
+                  userId={userId}
                 />
               )}
               {mainScreen === 'commons' && (
@@ -336,6 +337,7 @@ export default function App() {
           onSettings={() => setScreen('settings')}
           showAISuggestion={aiSuggestions}
           userEmail={userEmail}
+          userId={userId}
         />
       )}
       {screen === 'discover' && (
