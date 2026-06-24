@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Settings, ChevronRight, Flame, Trophy, Zap, Sparkles } from 'lucide-react';
 import { C } from '../constants/theme.js';
 import { TypeCircle, TypeBadge } from '../components/TypeIcon.jsx';
+import { StoriesRow } from '../components/StoriesRow.jsx';
+import { StoryViewer } from '../components/StoryViewer.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 const QUOTES = [
@@ -140,8 +142,10 @@ function CompactPanel({ entries, onOpen, onDiscover }) {
   );
 }
 
-export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, compact, showAISuggestion = true }) {
+export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, compact, showAISuggestion = true, userEmail }) {
   const { isDesktop } = useBreakpoint();
+
+  const [storyIdx,  setStoryIdx]  = useState(null); // null = closed, number = open at index
 
   const greeting    = useMemo(() => getGreeting(), []);
   const quote       = useMemo(() => getDailyQuote(), []);
@@ -200,6 +204,16 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
             )}
           </div>
         </div>
+
+        {/* ── Stories Row ── */}
+        {!isDesktop && (
+          <StoriesRow
+            entries={entries}
+            userEmail={userEmail}
+            onAddNew={onDiscover}
+            onViewStory={entry => setStoryIdx(entries.indexOf(entry))}
+          />
+        )}
 
         <div style={{ padding: pad }}>
 
@@ -493,6 +507,16 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
 
         </div>
       </div>
+
+      {/* ── Story Viewer overlay ── */}
+      {storyIdx !== null && entries.length > 0 && (
+        <StoryViewer
+          stories={entries}
+          initialIndex={Math.max(0, storyIdx)}
+          onClose={() => setStoryIdx(null)}
+          onOpen={onOpen}
+        />
+      )}
     </div>
   );
 }
