@@ -6,6 +6,7 @@ import {
   Key, Eye, EyeOff, AlertCircle, Loader,
 } from 'lucide-react';
 import { testGeminiKey } from '../lib/gemini.js';
+import { testGroqKey } from '../lib/groq.js';
 import { saveGeminiKeyToSupabase, deleteGeminiKeyFromSupabase } from '../hooks/useAppConfig.js';
 import { C } from '../constants/theme.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -105,12 +106,18 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
   const [deleting,       setDeleting]     = useState(false);
   const [exported,       setExported]     = useState(false);
 
-  // Gemini API key
+  // Groq API key (primary — free tier, recommended)
+  const [groqKey,        setGroqKey]     = useState(() => localStorage.getItem('wj_groq_key') || '');
+  const [groqInput,      setGroqInput]   = useState(() => localStorage.getItem('wj_groq_key') || '');
+  const [showGroqKey,    setShowGroqKey] = useState(false);
+  const [groqStatus,     setGroqStatus]  = useState(localStorage.getItem('wj_groq_key') ? 'saved' : 'idle');
+  const [groqError,      setGroqError]   = useState('');
+
+  // Gemini API key (secondary — quota issues in some regions)
   const [geminiKey,      setGeminiKey]   = useState(() => localStorage.getItem('wj_gemini_key') || '');
   const [geminiInput,    setGeminiInput] = useState(() => localStorage.getItem('wj_gemini_key') || '');
   const [showKey,        setShowKey]     = useState(false);
   const [keyStatus,      setKeyStatus]   = useState(localStorage.getItem('wj_gemini_key') ? 'saved' : 'idle');
-  // idle | saved | testing | valid | error
   const [keyError,       setKeyError]    = useState('');
 
   // Check notification permission on mount
@@ -190,6 +197,32 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
     setExported(true);
     setTimeout(() => setExported(false), 2500);
     showToast?.(`${entries.length} discoveries exported`);
+  };
+
+  const handleSaveGroqKey = async () => {
+    const key = groqInput.trim();
+    if (!key) return;
+    setGroqStatus('testing');
+    setGroqError('');
+    try {
+      await testGroqKey(key);
+      localStorage.setItem('wj_groq_key', key);
+      setGroqKey(key);
+      setGroqStatus('valid');
+      showToast?.('Groq AI active');
+    } catch (err) {
+      setGroqStatus('error');
+      setGroqError(err.message);
+    }
+  };
+
+  const handleClearGroqKey = () => {
+    localStorage.removeItem('wj_groq_key');
+    setGroqKey('');
+    setGroqInput('');
+    setGroqStatus('idle');
+    setGroqError('');
+    showToast?.('Groq key removed');
   };
 
   const handleDeleteAll = async () => {
@@ -391,9 +424,105 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
           <div style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 8 }}>
             AI Integration
           </div>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden' }}>
 
-            {/* Header row */}
+          {/* ── Groq (recommended) ── */}
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${C.border}` }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                background: '#2E7D5214', border: '1px solid #2E7D521A',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Zap size={15} color="#2E7D52" strokeWidth={2} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Groq AI</div>
+                  <div style={{
+                    fontSize: 9.5, fontWeight: 800, color: '#2E7D52', letterSpacing: '0.07em',
+                    background: '#2E7D5214', border: '1px solid #2E7D521A',
+                    borderRadius: 4, padding: '1px 5px',
+                  }}>RECOMMENDED</div>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 1.5 }}>
+                  {groqKey ? 'Llama 3 is active — fast and free' : 'Free tier, no billing needed — get key at console.groq.com'}
+                </div>
+              </div>
+              {groqStatus === 'valid' || (groqStatus === 'saved' && groqKey) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#2E7D5212', border: '1px solid #2E7D5230', borderRadius: 7, padding: '3px 9px' }}>
+                  <CheckCircle2 size={11} color="#2E7D52" strokeWidth={2.5} />
+                  <span style={{ fontSize: 11, color: '#2E7D52', fontWeight: 700 }}>Active</span>
+                </div>
+              ) : groqStatus === 'error' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: `${C.error}12`, border: `1px solid ${C.error}30`, borderRadius: 7, padding: '3px 9px' }}>
+                  <AlertCircle size={11} color={C.error} strokeWidth={2.5} />
+                  <span style={{ fontSize: 11, color: C.error, fontWeight: 700 }}>Error</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: C.muted, fontWeight: 500, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '3px 9px' }}>
+                  Not set
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '16px 18px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 8 }}>Groq API Key</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type={showGroqKey ? 'text' : 'password'}
+                    value={groqInput}
+                    onChange={e => { setGroqInput(e.target.value); setGroqStatus(groqKey ? 'saved' : 'idle'); setGroqError(''); }}
+                    placeholder="gsk_…"
+                    style={{
+                      width: '100%', background: C.bg,
+                      border: `1.5px solid ${groqStatus === 'error' ? C.error : groqStatus === 'valid' ? '#2E7D52' : C.border}`,
+                      borderRadius: 12, padding: '10px 42px 10px 14px',
+                      fontSize: 13.5, color: C.text, outline: 'none',
+                    }}
+                  />
+                  <button onClick={() => setShowGroqKey(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 2 }}>
+                    {showGroqKey ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleSaveGroqKey}
+                  disabled={!groqInput.trim() || groqStatus === 'testing'}
+                  style={{
+                    padding: '10px 16px', borderRadius: 12, border: 'none',
+                    background: groqInput.trim() && groqStatus !== 'testing' ? 'linear-gradient(135deg, #1C3A20, #2E7D52)' : C.border,
+                    color: groqInput.trim() && groqStatus !== 'testing' ? '#fff' : C.muted,
+                    fontSize: 13, fontWeight: 700, cursor: groqInput.trim() && groqStatus !== 'testing' ? 'pointer' : 'default',
+                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                  }}
+                >
+                  {groqStatus === 'testing'
+                    ? <><Loader size={13} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> Testing…</>
+                    : groqStatus === 'valid' || (groqStatus === 'saved' && groqKey === groqInput.trim())
+                    ? <><CheckCircle2 size={13} strokeWidth={2.5} /> Saved</>
+                    : 'Save & Test'}
+                </button>
+              </div>
+              {groqStatus === 'error' && groqError && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, background: `${C.error}0D`, border: `1px solid ${C.error}25`, borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
+                  <AlertCircle size={14} color={C.error} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 12.5, color: C.error, lineHeight: 1.5 }}>{groqError}</span>
+                </div>
+              )}
+              {groqKey && (
+                <button onClick={handleClearGroqKey} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 14px', fontSize: 12.5, color: C.muted, cursor: 'pointer', marginBottom: 10 }}>
+                  Remove Groq key
+                </button>
+              )}
+              <div style={{ padding: '10px 14px', background: '#2E7D520A', border: '1px solid #2E7D5220', borderRadius: 10 }}>
+                <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.65 }}>
+                  Free key at{' '}<span style={{ color: '#2E7D52', fontWeight: 600 }}>console.groq.com</span>{' '}→ API Keys → Create key. Uses Llama 3.3 70B — smarter and faster than free Gemini.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Gemini (secondary) ── */}
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden' }}>
             <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${C.border}` }}>
               <div style={{
                 width: 34, height: 34, borderRadius: 10, flexShrink: 0,
@@ -405,74 +534,43 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Google Gemini API</div>
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 1.5 }}>
-                  {geminiKey
-                    ? 'Gemini 1.5 Flash is active — your AI uses your key'
-                    : 'Add your key to unlock real Gemini AI responses'}
+                  {geminiKey ? 'Gemini is configured (used if no Groq key)' : 'Alternative — may have quota issues in some regions'}
                 </div>
               </div>
-              {/* Status badge */}
               {keyStatus === 'valid' || (keyStatus === 'saved' && geminiKey) ? (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  background: '#2E7D5212', border: '1px solid #2E7D5230',
-                  borderRadius: 7, padding: '3px 9px',
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#2E7D5212', border: '1px solid #2E7D5230', borderRadius: 7, padding: '3px 9px' }}>
                   <CheckCircle2 size={11} color="#2E7D52" strokeWidth={2.5} />
-                  <span style={{ fontSize: 11, color: '#2E7D52', fontWeight: 700 }}>Active</span>
+                  <span style={{ fontSize: 11, color: '#2E7D52', fontWeight: 700 }}>Saved</span>
                 </div>
               ) : keyStatus === 'error' ? (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  background: `${C.error}12`, border: `1px solid ${C.error}30`,
-                  borderRadius: 7, padding: '3px 9px',
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: `${C.error}12`, border: `1px solid ${C.error}30`, borderRadius: 7, padding: '3px 9px' }}>
                   <AlertCircle size={11} color={C.error} strokeWidth={2.5} />
                   <span style={{ fontSize: 11, color: C.error, fontWeight: 700 }}>Error</span>
                 </div>
               ) : (
-                <div style={{
-                  fontSize: 11, color: C.muted, fontWeight: 500,
-                  background: C.bg, border: `1px solid ${C.border}`,
-                  borderRadius: 7, padding: '3px 9px',
-                }}>
-                  Local AI
+                <div style={{ fontSize: 11, color: C.muted, fontWeight: 500, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '3px 9px' }}>
+                  Not set
                 </div>
               )}
             </div>
-
-            {/* Key input */}
             <div style={{ padding: '16px 18px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 8 }}>
-                Gemini API Key
-              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 8 }}>Gemini API Key</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 <div style={{ flex: 1, position: 'relative' }}>
                   <input
                     type={showKey ? 'text' : 'password'}
                     value={geminiInput}
                     onChange={e => { setGeminiInput(e.target.value); setKeyStatus(geminiKey ? 'saved' : 'idle'); setKeyError(''); }}
-                    placeholder="AIza…"
+                    placeholder="AQ… or AIza…"
                     style={{
                       width: '100%', background: C.bg,
                       border: `1.5px solid ${keyStatus === 'error' ? C.error : keyStatus === 'valid' ? '#2E7D52' : C.border}`,
                       borderRadius: 12, padding: '10px 42px 10px 14px',
                       fontSize: 13.5, color: C.text, outline: 'none',
-                      fontFamily: geminiInput && !showKey ? 'monospace' : 'inherit',
-                      letterSpacing: geminiInput && !showKey ? '0.1em' : 'normal',
                     }}
                   />
-                  <button
-                    onClick={() => setShowKey(v => !v)}
-                    style={{
-                      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: C.muted, padding: 2,
-                    }}
-                  >
-                    {showKey
-                      ? <EyeOff size={15} strokeWidth={1.75} />
-                      : <Eye size={15} strokeWidth={1.75} />
-                    }
+                  <button onClick={() => setShowKey(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 2 }}>
+                    {showKey ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
                   </button>
                 </div>
                 <button
@@ -480,61 +578,33 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
                   disabled={!geminiInput.trim() || keyStatus === 'testing'}
                   style={{
                     padding: '10px 16px', borderRadius: 12, border: 'none',
-                    background: geminiInput.trim() && keyStatus !== 'testing'
-                      ? 'linear-gradient(135deg, #1C1410, #2A1C14)'
-                      : C.border,
+                    background: geminiInput.trim() && keyStatus !== 'testing' ? 'linear-gradient(135deg, #1C1410, #2A1C14)' : C.border,
                     color: geminiInput.trim() && keyStatus !== 'testing' ? C.accent : C.muted,
                     fontSize: 13, fontWeight: 700, cursor: geminiInput.trim() && keyStatus !== 'testing' ? 'pointer' : 'default',
                     display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
-                    transition: 'all 0.15s',
                   }}
                 >
                   {keyStatus === 'testing'
                     ? <><Loader size={13} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> Testing…</>
                     : keyStatus === 'valid' || (keyStatus === 'saved' && geminiKey === geminiInput.trim())
                     ? <><CheckCircle2 size={13} strokeWidth={2.5} /> Saved</>
-                    : 'Save & Test'
-                  }
+                    : 'Save & Test'}
                 </button>
               </div>
-
-              {/* Error message */}
               {keyStatus === 'error' && keyError && (
-                <div style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 7,
-                  background: `${C.error}0D`, border: `1px solid ${C.error}25`,
-                  borderRadius: 10, padding: '10px 12px', marginBottom: 10,
-                }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, background: `${C.error}0D`, border: `1px solid ${C.error}25`, borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
                   <AlertCircle size={14} color={C.error} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
                   <span style={{ fontSize: 12.5, color: C.error, lineHeight: 1.5 }}>{keyError}</span>
                 </div>
               )}
-
-              {/* Clear key */}
               {geminiKey && (
-                <button
-                  onClick={handleClearKey}
-                  style={{
-                    background: 'none', border: `1px solid ${C.border}`, borderRadius: 10,
-                    padding: '7px 14px', fontSize: 12.5, color: C.muted,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                    transition: 'border-color 0.12s',
-                  }}
-                >
-                  Remove key — revert to local AI
+                <button onClick={handleClearKey} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 14px', fontSize: 12.5, color: C.muted, cursor: 'pointer', marginBottom: 10 }}>
+                  Remove Gemini key
                 </button>
               )}
-
-              {/* Help text */}
-              <div style={{
-                marginTop: 12, padding: '10px 14px',
-                background: C.accentDim, border: `1px solid ${C.accent}25`,
-                borderRadius: 10,
-              }}>
+              <div style={{ padding: '10px 14px', background: C.accentDim, border: `1px solid ${C.accent}25`, borderRadius: 10 }}>
                 <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.65 }}>
-                  Get a free key at{' '}
-                  <span style={{ color: C.accent, fontWeight: 600 }}>aistudio.google.com</span>
-                  {' '}→ Create API Key. Your key is stored locally and never sent anywhere except Google.
+                  Get key at{' '}<span style={{ color: C.accent, fontWeight: 600 }}>aistudio.google.com</span>{' '}→ Create API Key. Both AQ. and AIza. prefixes are valid.
                 </div>
               </div>
             </div>

@@ -2,6 +2,7 @@
 // Routes to Gemini 1.5 Flash when a key is saved in localStorage,
 // otherwise falls back to the fully local keyword-based engine.
 import { askGemini } from './gemini.js';
+import { askGroq } from './groq.js';
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -460,7 +461,19 @@ function respondGeneral(q, entries) {
 // ─────────────────────────────────────────────
 
 export async function askJournalAI(conversationMessages, entries, focusEntry = null) {
-  // Try Gemini first if the user has saved a key
+  // Groq takes priority — free and reliable
+  const groqKey = localStorage.getItem('wj_groq_key');
+  if (groqKey) {
+    try {
+      return await askGroq(groqKey, conversationMessages, entries, focusEntry);
+    } catch (err) {
+      console.warn('Groq failed, falling back to local AI:', err.message);
+      return `⚠️ Groq error: ${err.message}\n\nFalling back to local AI…\n\n` +
+        await localAI(conversationMessages, entries, focusEntry);
+    }
+  }
+
+  // Try Gemini if no Groq key
   const geminiKey = localStorage.getItem('wj_gemini_key');
   if (geminiKey) {
     try {
