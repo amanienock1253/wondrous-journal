@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { Settings, ChevronRight, Flame, Trophy, Zap, Archive } from 'lucide-react';
-import { C, typeMap } from '../constants/theme.js';
-import { EntryCard } from '../components/EntryCard.jsx';
+import { Settings, ChevronRight, Flame, Trophy, Zap, Sparkles } from 'lucide-react';
+import { C } from '../constants/theme.js';
+import { TypeCircle, TypeBadge } from '../components/TypeIcon.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 const QUOTES = [
@@ -341,16 +341,58 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
           {/* ── Recent Discoveries ── */}
           {entries.length > 0 && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Recent Discoveries</span>
                 <button
-                  onClick={() => {}}
+                  onClick={onDiscover}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: C.accent, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}
                 >
                   See all <ChevronRight size={13} strokeWidth={2.5} />
                 </button>
               </div>
-              {recent.map(e => <EntryCard key={e.id} entry={e} onOpen={onOpen} />)}
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden' }}>
+                {recent.map((e, i) => {
+                  const date = new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  return (
+                    <button
+                      key={e.id}
+                      onClick={() => onOpen(e)}
+                      style={{
+                        width: '100%', background: 'none', border: 'none',
+                        borderTop: i === 0 ? 'none' : `1px solid ${C.border}`,
+                        padding: '12px 16px', cursor: 'pointer', textAlign: 'left',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e2 => e2.currentTarget.style.background = `${C.accent}05`}
+                      onMouseLeave={e2 => e2.currentTarget.style.background = 'none'}
+                    >
+                      <TypeCircle type={e.type} size={38} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 13.5, fontWeight: 600, color: C.text,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          marginBottom: 3,
+                        }}>
+                          {e.title || 'Untitled'}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <TypeBadge type={e.type} />
+                          <span style={{ fontSize: 11, color: C.muted }}>{date}</span>
+                          {(e.excited || 0) > 0 && (
+                            <div style={{ display: 'flex', gap: 2, marginLeft: 2 }}>
+                              {[1,2,3,4,5].map(i => (
+                                <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i <= e.excited ? C.accent : C.border }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} color={C.border} strokeWidth={2} />
+                    </button>
+                  );
+                })}
+              </div>
             </>
           )}
 
@@ -361,26 +403,19 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
                 <Trophy size={15} color={C.accent} strokeWidth={2} />
                 <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Top Discovery</span>
               </div>
-              <div
+              <button
                 onClick={() => onOpen(topEntry)}
                 style={{
-                  background: C.surface,
+                  width: '100%', background: C.surface,
                   border: `1.5px solid ${C.accent}30`,
-                  borderRadius: 18, padding: '18px 18px 16px', cursor: 'pointer',
-                  boxShadow: `0 4px 20px ${C.accent}18`,
+                  borderRadius: 18, padding: '16px 18px', cursor: 'pointer', textAlign: 'left',
+                  boxShadow: `0 4px 20px ${C.accent}14`,
                   display: 'flex', gap: 14, alignItems: 'center',
-                  transition: 'transform 0.12s ease',
                 }}
               >
-                <div style={{
-                  width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                  background: (typeMap[topEntry.type] || typeMap.idea).gradient,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontSize: 22 }}>{(typeMap[topEntry.type] || typeMap.idea).icon}</span>
-                </div>
+                <TypeCircle type={topEntry.type} size={48} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, marginBottom: 4, letterSpacing: '0.04em' }}>
+                  <div style={{ fontSize: 10.5, color: C.accent, fontWeight: 700, marginBottom: 4, letterSpacing: '0.06em' }}>
                     HIGHEST RATED
                   </div>
                   <div style={{
@@ -392,15 +427,12 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
                   </div>
                   <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
                     {[1,2,3,4,5].map(i => (
-                      <div key={i} style={{
-                        width: 7, height: 7, borderRadius: '50%',
-                        background: i <= (topEntry.excited || 0) ? C.accent : C.border,
-                      }} />
+                      <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: i <= (topEntry.excited || 0) ? C.accent : C.border }} />
                     ))}
                   </div>
                 </div>
                 <ChevronRight size={16} color={C.muted} strokeWidth={1.75} />
-              </div>
+              </button>
             </div>
           )}
 
@@ -411,11 +443,18 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
               borderRadius: 22, padding: '44px 28px', textAlign: 'center',
               marginTop: 8,
             }}>
-              <div style={{ fontSize: 40, marginBottom: 14 }}>🌱</div>
+              <div style={{
+                width: 56, height: 56, borderRadius: 18,
+                background: 'linear-gradient(135deg, #1C1410, #2A1C14)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <Sparkles size={24} color={C.accent} strokeWidth={1.75} />
+              </div>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 10 }}>
                 Your innovation journey starts here
               </div>
-              <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.7, marginBottom: 24, maxWidth: 320, margin: '0 auto 24px' }}>
+              <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.7, marginBottom: 24, maxWidth: 300, margin: '0 auto 24px' }}>
                 Every great product began with a single observation. Start capturing what you notice, question, and imagine.
               </div>
               <button
@@ -428,7 +467,7 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
                   boxShadow: '0 6px 24px rgba(28,20,16,0.28)',
                 }}
               >
-                <span>✦</span> Make your first discovery
+                <Sparkles size={16} strokeWidth={2} /> Make your first discovery
               </button>
             </div>
           )}
@@ -452,21 +491,6 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
             </button>
           )}
 
-          {/* Bottom vault link */}
-          {entries.length > 3 && (
-            <button
-              style={{
-                width: '100%', marginTop: 10,
-                background: 'none', border: `1px solid ${C.border}`,
-                borderRadius: 14, padding: '13px', fontSize: 13.5,
-                color: C.sub, fontWeight: 500, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-              }}
-            >
-              <Archive size={14} strokeWidth={1.75} />
-              Open Vault ({entries.length} discoveries)
-            </button>
-          )}
         </div>
       </div>
     </div>

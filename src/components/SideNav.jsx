@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Compass, FolderKanban, TrendingUp, Sparkles, Settings, LogOut } from 'lucide-react';
+import { Home, Compass, Globe, TrendingUp, Sparkles, Settings, LogOut } from 'lucide-react';
 
 const SB = {
   bg:     '#1A2B1A',
@@ -12,11 +12,11 @@ const SB = {
 };
 
 const NAV_ITEMS = [
-  { key: 'home',     Icon: Home,         label: 'Home'     },
-  { key: 'discover', Icon: Compass,      label: 'Discover' },
-  { key: 'projects', Icon: FolderKanban, label: 'Projects' },
-  { key: 'insights', Icon: TrendingUp,   label: 'Insights' },
-  { key: 'ai',       Icon: Sparkles,     label: 'AI'       },
+  { key: 'home',     Icon: Home,       label: 'Home'     },
+  { key: 'discover', Icon: Compass,    label: 'Discover' },
+  { key: 'commons',  Icon: Globe,      label: 'Commons'  },
+  { key: 'insights', Icon: TrendingUp, label: 'Insights' },
+  { key: 'ai',       Icon: Sparkles,   label: 'AI'       },
 ];
 
 export function SideNav({ screen, setScreen, onSignOut, entryCount }) {

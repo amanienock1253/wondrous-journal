@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Home, Compass, FolderKanban, TrendingUp, Sparkles } from 'lucide-react';
+import { Home, Compass, Globe, TrendingUp, Sparkles } from 'lucide-react';
 import { C } from '../constants/theme.js';
 
 const ITEMS = [
-  { key: 'home',     Icon: Home,         label: 'Home'     },
-  { key: 'discover', Icon: Compass,      label: 'Discover' },
-  { key: 'projects', Icon: FolderKanban, label: 'Projects' },
-  { key: 'insights', Icon: TrendingUp,   label: 'Insights' },
-  { key: 'ai',       Icon: Sparkles,     label: 'AI'       },
+  { key: 'home',     Icon: Home,        label: 'Home'     },
+  { key: 'discover', Icon: Compass,     label: 'Discover' },
+  { key: 'commons',  Icon: Globe,       label: 'Commons'  },
+  { key: 'insights', Icon: TrendingUp,  label: 'Insights' },
+  { key: 'ai',       Icon: Sparkles,    label: 'AI'       },
 ];
 
 export function BottomNav({ screen, setScreen }) {
@@ -35,7 +35,7 @@ export function BottomNav({ screen, setScreen }) {
     }}>
       {ITEMS.map(({ key, Icon, label }) => {
         const active     = screen === key;
-        const isDiscover = key === 'discover';
+        const isDiscover = key === 'discover' || key === 'commons';
 
         return (
           <button

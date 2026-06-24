@@ -6,7 +6,7 @@ import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { AuthScreen } from './screens/AuthScreen.jsx';
 import { HomeScreen } from './screens/HomeScreen.jsx';
 import { DiscoverScreen } from './screens/DiscoverScreen.jsx';
-import { ProjectsScreen } from './screens/ProjectsScreen.jsx';
+import { CommonsScreen } from './screens/CommonsScreen.jsx';
 import { DetailScreen } from './screens/DetailScreen.jsx';
 import { InsightsScreen } from './screens/InsightsScreen.jsx';
 import { SettingsScreen } from './screens/SettingsScreen.jsx';
@@ -18,7 +18,7 @@ import { AIChat } from './components/AIChat.jsx';
 import { C } from './constants/theme.js';
 import { useAppConfig, ADMIN_EMAIL } from './hooks/useAppConfig.js';
 
-const NAV_SCREENS = new Set(['home', 'discover', 'projects', 'insights', 'ai', 'settings']);
+const NAV_SCREENS = new Set(['home', 'discover', 'commons', 'insights', 'ai', 'settings']);
 
 export default function App() {
   const { session, initializing, authLoading, authError, signIn, signUp, signOut } = useAuth();
@@ -261,8 +261,8 @@ export default function App() {
                   showAISuggestion={aiSuggestions}
                 />
               )}
-              {mainScreen === 'projects' && (
-                <ProjectsScreen entries={entries} onOpen={handleOpenEntry} onDiscover={handleDiscoverClick} />
+              {mainScreen === 'commons' && (
+                <CommonsScreen userId={userId} userEmail={userEmail} entries={entries} showToast={showToast} />
               )}
               {mainScreen === 'discover' && (
                 <DiscoverScreen
@@ -340,8 +340,8 @@ export default function App() {
           onBack={() => setScreen('home')}
         />
       )}
-      {screen === 'projects' && (
-        <ProjectsScreen entries={entries} onOpen={handleOpenEntry} onDiscover={handleDiscoverClick} />
+      {screen === 'commons' && (
+        <CommonsScreen userId={userId} userEmail={userEmail} entries={entries} showToast={showToast} />
       )}
       {screen === 'detail' && currentEntry && (
         <DetailScreen
