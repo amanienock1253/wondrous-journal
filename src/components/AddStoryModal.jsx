@@ -10,6 +10,7 @@ export function AddStoryModal({ onPost, onClose, existing, onDelete }) {
   const [text,    setText]    = useState('');
   const [bgIdx,   setBgIdx]   = useState(0);
   const [posting, setPosting] = useState(false);
+  const [err,     setErr]     = useState('');
   const [kbH,     setKbH]     = useState(0);
   const textareaRef           = useRef(null);
 
@@ -39,9 +40,14 @@ export function AddStoryModal({ onPost, onClose, existing, onDelete }) {
   const handlePost = async () => {
     if (!text.trim() || posting) return;
     setPosting(true);
+    setErr('');
     const ok = await onPost(text.trim(), bg);
-    if (!ok) setPosting(false);
-    // onPost resolves then onClose is called from parent
+    if (ok) {
+      onClose();
+    } else {
+      setPosting(false);
+      setErr('Failed to post. Check your connection and try again.');
+    }
   };
 
   const cycleColor = () => setBgIdx(i => (i + 1) % BG_KEYS.length);
@@ -134,6 +140,13 @@ export function AddStoryModal({ onPost, onClose, existing, onDelete }) {
           className="story-input"
         />
       </div>
+
+      {/* ── Error message ── */}
+      {err ? (
+        <div style={{ textAlign: 'center', padding: '0 24px 8px', fontSize: 12, color: 'rgba(255,180,160,1)', fontWeight: 500 }}>
+          {err}
+        </div>
+      ) : null}
 
       {/* ── Bottom controls — floats above keyboard ── */}
       <div style={{
