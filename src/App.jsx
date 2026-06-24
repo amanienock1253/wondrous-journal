@@ -17,6 +17,7 @@ import { Toast } from './components/Toast.jsx';
 import { AIChat } from './components/AIChat.jsx';
 import { C } from './constants/theme.js';
 import { useAppConfig, ADMIN_EMAIL } from './hooks/useAppConfig.js';
+import { useProfile } from './hooks/useProfile.js';
 
 const NAV_SCREENS = new Set(['home', 'discover', 'commons', 'insights', 'ai', 'settings']);
 
@@ -37,6 +38,7 @@ export default function App() {
   const userEmail = session?.user?.email;
   const isAdmin   = userEmail === ADMIN_EMAIL;
   const { entries, error: entriesError, addEntry, updateEntry, deleteEntry, deleteAllEntries } = useEntries(userId);
+  const { profile, updateProfile } = useProfile(userId);
 
   // Silently sync admin's Gemini key from Supabase to localStorage for all users
   useAppConfig(userId);
@@ -262,7 +264,7 @@ export default function App() {
                 />
               )}
               {mainScreen === 'commons' && (
-                <CommonsScreen userId={userId} userEmail={userEmail} entries={entries} showToast={showToast} />
+                <CommonsScreen userId={userId} userEmail={userEmail} entries={entries} profile={profile} onUpdateProfile={updateProfile} />
               )}
               {mainScreen === 'discover' && (
                 <DiscoverScreen
@@ -295,6 +297,8 @@ export default function App() {
                   onToggleAI={handleToggleAI}
                   showToast={showToast}
                   onBack={() => handleNavChange('home')}
+                  profile={profile}
+                  onUpdateProfile={updateProfile}
                 />
               )}
             </div>
@@ -341,7 +345,7 @@ export default function App() {
         />
       )}
       {screen === 'commons' && (
-        <CommonsScreen userId={userId} userEmail={userEmail} entries={entries} showToast={showToast} />
+        <CommonsScreen userId={userId} userEmail={userEmail} entries={entries} profile={profile} onUpdateProfile={updateProfile} />
       )}
       {screen === 'detail' && currentEntry && (
         <DetailScreen
@@ -369,6 +373,8 @@ export default function App() {
           onToggleAI={handleToggleAI}
           showToast={showToast}
           onBack={() => setScreen('home')}
+          profile={profile}
+          onUpdateProfile={updateProfile}
         />
       )}
 

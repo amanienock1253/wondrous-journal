@@ -3,7 +3,7 @@ import {
   Sparkles, LogOut, Bell, Moon, Shield, Trash2,
   ChevronRight, Globe, Lock, Database, Palette, Zap,
   FileText, Star, Sun, CheckCircle2, ChevronLeft,
-  Key, Eye, EyeOff, AlertCircle, Loader,
+  Key, Eye, EyeOff, AlertCircle, Loader, User, Phone,
 } from 'lucide-react';
 import { testGeminiKey } from '../lib/gemini.js';
 import { testGroqKey } from '../lib/groq.js';
@@ -94,7 +94,7 @@ function Toggle({ on, onToggle, disabled }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], onDeleteAll, aiSuggestions, onToggleAI, showToast, onBack }) {
+export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], onDeleteAll, aiSuggestions, onToggleAI, showToast, onBack, profile, onUpdateProfile }) {
   const { isDesktop } = useBreakpoint();
 
   // Persisted preferences
@@ -105,6 +105,12 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
   const [confirmDelete,  setConfirm]      = useState(false);
   const [deleting,       setDeleting]     = useState(false);
   const [exported,       setExported]     = useState(false);
+
+  // Profile
+  const [displayName,   setDisplayName]  = useState(profile?.display_name || '');
+  const [waPhone,       setWaPhone]      = useState(profile?.whatsapp_phone || '');
+  const [profileSaving, setProfileSave]  = useState(false);
+  const [profileSaved,  setProfileSaved] = useState(false);
 
   // Groq API key (primary — free tier, recommended)
   const [groqKey,        setGroqKey]     = useState(() => localStorage.getItem('wj_groq_key') || '');
@@ -175,6 +181,14 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
     setAutoSave(next);
     setLS('wj_autosave', next);
     showToast?.(next ? 'Auto-save enabled' : 'Auto-save disabled');
+  };
+
+  const handleSaveProfile = async () => {
+    if (!displayName.trim()) return;
+    setProfileSave(true);
+    const ok = await onUpdateProfile?.({ display_name: displayName.trim(), whatsapp_phone: waPhone.trim() });
+    setProfileSave(false);
+    if (ok !== false) { setProfileSaved(true); showToast?.('Profile updated'); setTimeout(() => setProfileSaved(false), 2500); }
   };
 
   const handleExport = () => {
@@ -323,6 +337,74 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
               <Star size={10} color={C.accent} strokeWidth={0} fill={C.accent} />
               <span style={{ fontSize: 10.5, color: C.accent, fontWeight: 700, letterSpacing: '0.05em' }}>WONDROUS PRO</span>
             </div>
+          </div>
+        </div>
+
+        {/* ── Profile ── */}
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 8 }}>
+            Profile
+          </div>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, padding: '18px 18px 20px' }}>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
+                <User size={13} color={C.muted} strokeWidth={2} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.sub }}>Display Name</span>
+              </div>
+              <input
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                placeholder="How others see you in Commons"
+                style={{
+                  width: '100%', border: `1.5px solid ${C.border}`, borderRadius: 12,
+                  padding: '10px 14px', fontSize: 14, fontFamily: 'inherit',
+                  color: C.text, background: C.bg, outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => e.target.style.borderColor = C.accent}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
+                <Phone size={13} color={C.muted} strokeWidth={2} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.sub }}>WhatsApp Number</span>
+                <span style={{ fontSize: 11, color: C.muted }}>(optional)</span>
+              </div>
+              <input
+                value={waPhone}
+                onChange={e => setWaPhone(e.target.value)}
+                placeholder="+255 712 345 678"
+                type="tel"
+                style={{
+                  width: '100%', border: `1.5px solid ${C.border}`, borderRadius: 12,
+                  padding: '10px 14px', fontSize: 14, fontFamily: 'inherit',
+                  color: C.text, background: C.bg, outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => e.target.style.borderColor = C.accent}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+              <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>
+                Lets people connect with you directly from Commons posts
+              </div>
+            </div>
+            <button
+              onClick={handleSaveProfile}
+              disabled={!displayName.trim() || profileSaving}
+              style={{
+                padding: '10px 20px', borderRadius: 12, border: 'none',
+                background: profileSaved
+                  ? '#2E7D52' : displayName.trim()
+                  ? 'linear-gradient(135deg, #1C1410, #2A1C14)' : C.border,
+                color: profileSaved ? '#fff' : displayName.trim() ? C.accent : C.muted,
+                fontSize: 13.5, fontWeight: 700,
+                cursor: displayName.trim() ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s',
+              }}
+            >
+              {profileSaving ? <><Loader size={13} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> Saving…</>
+               : profileSaved ? <><CheckCircle2 size={13} strokeWidth={2.5} /> Saved</>
+               : 'Save Profile'}
+            </button>
           </div>
         </div>
 
