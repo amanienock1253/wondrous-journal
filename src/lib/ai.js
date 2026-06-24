@@ -145,11 +145,11 @@ function respondEmpty() {
 
 function respondGreeting(entries) {
   const n = entries.length;
-  if (n === 0) return "Hey! I'm your thinking partner built into Wondrous Journal. Start capturing ideas and I'll help you make sense of them.";
+  if (n === 0) return "Hey! Start capturing ideas and I'll help you think through them.";
   return pick([
-    `Hey! I've been through all ${n} of your captures. Ask me anything — I'm here to help you think.`,
-    `Hi! I know your journal well — ${n} captures, and I've spotted some interesting things. What do you want to explore?`,
-    `Hello! With ${n} entries to work with, I can find patterns, connections, and help you develop ideas. Where should we start?`,
+    `Hey! What do you want to explore today?`,
+    `Hi! What's on your mind?`,
+    `Hello! Ask me anything about your discoveries or ideas.`,
   ]);
 }
 
@@ -461,28 +461,16 @@ function respondGeneral(q, entries) {
 // ─────────────────────────────────────────────
 
 export async function askJournalAI(conversationMessages, entries, focusEntry = null) {
-  // Groq takes priority — free and reliable
-  const groqKey = localStorage.getItem('wj_groq_key');
+  const groqKey   = localStorage.getItem('wj_groq_key');
+  const geminiKey = localStorage.getItem('wj_gemini_key');
+
   if (groqKey) {
-    try {
-      return await askGroq(groqKey, conversationMessages, entries, focusEntry);
-    } catch (err) {
-      console.warn('Groq failed, falling back to local AI:', err.message);
-      return `⚠️ Groq error: ${err.message}\n\nFalling back to local AI…\n\n` +
-        await localAI(conversationMessages, entries, focusEntry);
-    }
+    // Groq is the primary engine — let errors surface so useAI can handle them
+    return await askGroq(groqKey, conversationMessages, entries, focusEntry);
   }
 
-  // Try Gemini if no Groq key
-  const geminiKey = localStorage.getItem('wj_gemini_key');
   if (geminiKey) {
-    try {
-      return await askGemini(geminiKey, conversationMessages, entries, focusEntry);
-    } catch (err) {
-      console.warn('Gemini failed, falling back to local AI:', err.message);
-      return `⚠️ Gemini error: ${err.message}\n\nFalling back to local AI…\n\n` +
-        await localAI(conversationMessages, entries, focusEntry);
-    }
+    return await askGemini(geminiKey, conversationMessages, entries, focusEntry);
   }
 
   return localAI(conversationMessages, entries, focusEntry);

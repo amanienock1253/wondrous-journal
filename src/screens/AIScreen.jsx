@@ -69,10 +69,12 @@ export function AIScreen({ entries }) {
   const inputRef    = useRef(null);
   const { isDesktop } = useBreakpoint();
 
-  const usingGroq   = !!localStorage.getItem('wj_groq_key');
-  const usingGemini = !usingGroq && !!localStorage.getItem('wj_gemini_key');
-  const engineLabel = usingGroq ? 'Groq — Llama 3.3' : usingGemini ? 'Gemini 1.5 Flash' : 'Local AI';
-  const engineColor = usingGroq || usingGemini ? '#2E7D52' : C.accent;
+  const groqKey     = localStorage.getItem('wj_groq_key');
+  const geminiKey   = localStorage.getItem('wj_gemini_key');
+  const usingGroq   = !!groqKey;
+  const usingGemini = !usingGroq && !!geminiKey;
+  const engineLabel = usingGroq ? 'Groq — Llama 3.3 70B' : usingGemini ? 'Gemini' : 'Local AI';
+  const engineColor = usingGroq ? '#2E7D52' : usingGemini ? '#4A90D9' : C.muted;
 
   useEffect(() => {
     if (messages.length > 0 || isLoading) {
