@@ -1,210 +1,140 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { C, typeMap } from '../constants/theme.js';
-import { TypeIcon, TypeBadge } from './TypeIcon.jsx';
+import { C } from '../constants/theme.js';
+import { STORY_BG } from '../hooks/useStories.js';
+import { userColor, userInitials } from '../hooks/useCommunityStories.js';
+import { markStoryViewed } from './StoriesRow.jsx';
 
-function markViewed(id) {
-  try {
-    const v = new Set(JSON.parse(localStorage.getItem('wj_viewed') || '[]'));
-    v.add(id);
-    localStorage.setItem('wj_viewed', JSON.stringify([...v]));
-  } catch {}
+function timeAgo(iso) {
+  const m = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
 }
 
-export function StoryViewer({ stories, initialIndex = 0, onClose, onOpen }) {
-  const [idx,      setIdx]      = useState(initialIndex);
-  const [leaving,  setLeaving]  = useState(null); // 'left' | 'right' | null
-  const entry = stories[idx];
+export function StoryViewer({ stories, initialIndex = 0, onClose }) {
+  const [idx,     setIdx]     = useState(initialIndex);
+  const [fading,  setFading]  = useState(false);
+
+  const story = stories[idx];
 
   useEffect(() => {
-    if (entry) markViewed(entry.id);
-  }, [entry?.id]);
+    if (story) markStoryViewed(story.id);
+  }, [story?.id]);
 
-  // Keyboard nav
   useEffect(() => {
-    const handler = e => {
+    const h = e => {
       if (e.key === 'ArrowRight' || e.key === ' ') go(1);
       if (e.key === 'ArrowLeft')                    go(-1);
       if (e.key === 'Escape')                        onClose();
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
   }, [idx]);
 
   const go = useCallback((dir) => {
     const next = idx + dir;
-    if (next < 0)               { onClose(); return; }
-    if (next >= stories.length) { onClose(); return; }
-    setLeaving(dir > 0 ? 'left' : 'right');
-    setTimeout(() => { setIdx(next); setLeaving(null); }, 120);
+    if (next < 0 || next >= stories.length) { onClose(); return; }
+    setFading(true);
+    setTimeout(() => { setIdx(next); setFading(false); }, 130);
   }, [idx, stories.length, onClose]);
 
   const handleTap = (e) => {
-    // Ignore taps on buttons/interactive elements
-    if (e.target.closest('button') || e.target.closest('[data-action]')) return;
-    const x = e.clientX;
-    const w = window.innerWidth;
-    go(x < w / 3 ? -1 : 1);
+    if (e.target.closest('button') || e.target.closest('[data-stop]')) return;
+    go(e.clientX < window.innerWidth / 3 ? -1 : 1);
   };
 
-  if (!entry) return null;
+  if (!story) return null;
 
-  const t    = typeMap[entry.type] || typeMap.idea;
-  const date = new Date(entry.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  const hasBody = entry.body && entry.body.trim().length > 0;
+  const theme  = STORY_BG[story.bg] || STORY_BG.sunset;
+  const color  = userColor(story.user_id);
+  const label  = userInitials(story.user_id);
+  const expiry = 24 - Math.floor((Date.now() - new Date(story.created_at)) / 3600000);
 
   return (
     <div
+      onClick={handleTap}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1200,
+        position: 'fixed', inset: 0, zIndex: 1400,
+        background: `linear-gradient(160deg, ${theme.from} 0%, ${theme.to} 100%)`,
         display: 'flex', flexDirection: 'column',
-        background: `linear-gradient(160deg, ${t.color}55 0%, #1A1714 45%, #0F0D0B 100%)`,
-        transition: 'opacity 0.12s',
-        opacity: leaving ? 0 : 1,
+        opacity: fading ? 0 : 1, transition: 'opacity 0.13s',
         userSelect: 'none',
       }}
-      onClick={handleTap}
     >
       {/* Progress pills */}
       <div style={{ display: 'flex', gap: 4, padding: '52px 16px 10px', flexShrink: 0 }}>
         {stories.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1, height: 3, borderRadius: 2,
-              background: i < idx
-                ? 'rgba(255,255,255,0.85)'
-                : i === idx
-                ? 'rgba(255,255,255,0.85)'
-                : 'rgba(255,255,255,0.25)',
-              transition: 'background 0.15s',
-            }}
-          />
+          <div key={i} style={{
+            flex: 1, height: 3, borderRadius: 2,
+            background: i <= idx ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
+          }} />
         ))}
       </div>
 
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px 12px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px 16px', flexShrink: 0 }}>
         <div style={{
-          width: 36, height: 36, borderRadius: '50%',
-          background: `${t.color}30`, border: `1px solid ${t.color}50`,
+          width: 38, height: 38, borderRadius: '50%', marginRight: 10, flexShrink: 0,
+          background: `linear-gradient(135deg, ${color}EE, ${color}88)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginRight: 10,
         }}>
-          <TypeIcon type={entry.type} size={18} color="#fff" strokeWidth={1.75} />
+          <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>
+            {label}
+          </span>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1 }}>
-            {entry.type ? entry.type.charAt(0).toUpperCase() + entry.type.slice(1) : 'Discovery'}
+            Community member
           </div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{date}</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+            {timeAgo(story.created_at)} · expires in {Math.max(1, expiry)}h
+          </div>
         </div>
         <button
-          data-action
           onClick={e => { e.stopPropagation(); onClose(); }}
-          style={{
-            background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: '50%',
-            width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
           <X size={18} color="#fff" strokeWidth={2} />
         </button>
       </div>
 
-      {/* Story content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' }}>
-
-        {/* Big type icon */}
+      {/* Story text */}
+      <div
+        data-stop
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' }}
+      >
         <div style={{
-          width: 84, height: 84, borderRadius: 26, marginBottom: 24,
-          background: `${t.color}25`,
-          border: `1.5px solid ${t.color}40`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `0 8px 32px ${t.color}30`,
-        }}>
-          <TypeIcon type={entry.type} size={40} color={t.color} strokeWidth={1.5} />
-        </div>
-
-        <TypeBadge
-          type={entry.type}
-          style={{
-            marginBottom: 18,
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff',
-          }}
-        />
-
-        <div style={{
+          fontSize: story.text.length > 100 ? 20 : story.text.length > 60 ? 24 : 28,
+          fontWeight: 700, color: '#fff', lineHeight: 1.55,
+          textShadow: '0 2px 16px rgba(0,0,0,0.25)',
           fontFamily: "'Playfair Display', serif",
-          fontSize: 26, fontWeight: 700, color: '#fff',
-          lineHeight: 1.3, marginBottom: hasBody ? 18 : 0,
-          textShadow: '0 2px 12px rgba(0,0,0,0.4)',
         }}>
-          {entry.title || 'Untitled'}
+          {story.text}
         </div>
-
-        {hasBody && (
-          <div style={{
-            fontSize: 15, color: 'rgba(255,255,255,0.72)',
-            lineHeight: 1.7, maxWidth: 340,
-          }}>
-            {entry.body.slice(0, 220)}{entry.body.length > 220 ? '…' : ''}
-          </div>
-        )}
-
-        {/* Excitement */}
-        {(entry.excited || 0) > 0 && (
-          <div style={{ display: 'flex', gap: 7, marginTop: 22 }}>
-            {[1,2,3,4,5].map(i => (
-              <div key={i} style={{
-                width: 9, height: 9, borderRadius: '50%',
-                background: i <= entry.excited ? C.accent : 'rgba(255,255,255,0.2)',
-                boxShadow: i <= entry.excited ? `0 0 6px ${C.accent}` : 'none',
-              }} />
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Bottom actions */}
+      {/* Nav buttons */}
       <div
-        data-action
-        style={{ padding: '12px 24px 56px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-        onClick={e => e.stopPropagation()}
+        data-stop
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px 56px' }}
       >
         <button
           onClick={() => go(-1)}
-          style={{
-            background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-            width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', opacity: idx > 0 ? 1 : 0.2,
-          }}
+          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: idx > 0 ? 1 : 0.25 }}
         >
-          <ChevronLeft size={20} color="#fff" strokeWidth={2} />
+          <ChevronLeft size={22} color="#fff" strokeWidth={2} />
         </button>
 
-        <button
-          onClick={() => { onOpen(entry); onClose(); }}
-          style={{
-            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
-            borderRadius: 16, padding: '10px 22px',
-            fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer',
-          }}
-        >
-          View full entry
-        </button>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+          {idx + 1} / {stories.length}
+        </div>
 
         <button
           onClick={() => go(1)}
-          style={{
-            background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-            width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', opacity: idx < stories.length - 1 ? 1 : 0.2,
-          }}
+          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: idx < stories.length - 1 ? 1 : 0.25 }}
         >
-          <ChevronRight size={20} color="#fff" strokeWidth={2} />
+          <ChevronRight size={22} color="#fff" strokeWidth={2} />
         </button>
       </div>
     </div>

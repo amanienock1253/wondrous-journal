@@ -4,7 +4,8 @@ import { C } from '../constants/theme.js';
 import { TypeCircle, TypeBadge } from '../components/TypeIcon.jsx';
 import { StoriesRow } from '../components/StoriesRow.jsx';
 import { StoryViewer } from '../components/StoryViewer.jsx';
-import { useCommunityStories } from '../hooks/useCommunityStories.js';
+import { AddStoryModal } from '../components/AddStoryModal.jsx';
+import { useStories } from '../hooks/useStories.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 const QUOTES = [
@@ -146,9 +147,10 @@ function CompactPanel({ entries, onOpen, onDiscover }) {
 export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, compact, showAISuggestion = true, userEmail, userId }) {
   const { isDesktop } = useBreakpoint();
 
-  const [storyIdx,    setStoryIdx]    = useState(null);
-  const [storyList,   setStoryList]   = useState([]);
-  const { stories: communityStories, loading: storiesLoading } = useCommunityStories(userId);
+  const [storyIdx,      setStoryIdx]    = useState(null);
+  const [storyList,     setStoryList]   = useState([]);
+  const [addStoryOpen,  setAddStory]    = useState(false);
+  const { myStory, community, loading: storiesLoading, postStory, deleteMyStory } = useStories(userId);
 
   const greeting    = useMemo(() => getGreeting(), []);
   const quote       = useMemo(() => getDailyQuote(), []);
@@ -208,17 +210,18 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
           </div>
         </div>
 
-        {/* ── Stories Row (community) ── */}
+        {/* ── Stories Row ── */}
         {!isDesktop && (
           <StoriesRow
-            communityStories={communityStories}
+            myStory={myStory}
+            community={community}
             loading={storiesLoading}
             userEmail={userEmail}
             userId={userId}
-            onAddNew={onDiscover}
-            onViewStory={entry => {
-              setStoryList(communityStories);
-              setStoryIdx(communityStories.indexOf(entry));
+            onMyStoryPress={() => setAddStory(true)}
+            onViewStory={story => {
+              setStoryList(community);
+              setStoryIdx(community.indexOf(story));
             }}
           />
         )}
@@ -516,13 +519,22 @@ export function HomeScreen({ entries, onDiscover, onOpen, onAI, onSettings, comp
         </div>
       </div>
 
-      {/* ── Story Viewer overlay ── */}
+      {/* ── Story Viewer ── */}
       {storyIdx !== null && storyList.length > 0 && (
         <StoryViewer
           stories={storyList}
           initialIndex={Math.max(0, storyIdx)}
           onClose={() => { setStoryIdx(null); setStoryList([]); }}
-          onOpen={onOpen}
+        />
+      )}
+
+      {/* ── Add Story modal ── */}
+      {addStoryOpen && (
+        <AddStoryModal
+          existing={myStory}
+          onPost={postStory}
+          onDelete={async () => { await deleteMyStory(); setAddStory(false); }}
+          onClose={() => setAddStory(false)}
         />
       )}
     </div>
