@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Send, ChevronRight } from 'lucide-react';
+import { Send, ChevronRight, X } from 'lucide-react';
 import { C } from '../constants/theme.js';
 import { useAI } from '../hooks/useAI.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -69,10 +69,14 @@ export function AIScreen({ entries }) {
   const inputRef    = useRef(null);
   const { isDesktop } = useBreakpoint();
 
+  const usingGroq   = !!localStorage.getItem('wj_groq_key');
+  const usingGemini = !usingGroq && !!localStorage.getItem('wj_gemini_key');
+  const engineLabel = usingGroq ? 'Groq — Llama 3.3' : usingGemini ? 'Gemini 1.5 Flash' : 'Local AI';
+  const engineColor = usingGroq || usingGemini ? '#2E7D52' : C.accent;
+
   useEffect(() => {
     if (messages.length > 0 || isLoading) {
       msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      setShowModes(false);
     }
   }, [messages.length, isLoading]);
 
@@ -89,16 +93,21 @@ export function AIScreen({ entries }) {
     if (!input.trim() || isLoading) return;
     sendMessage(input.trim());
     setInput('');
+    setShowModes(false);
   };
 
   const handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
   const handleMode = prompt => { sendMessage(prompt); setShowModes(false); };
+
+  const hasMessages = messages.length > 0;
 
   return (
     <>
       <style>{`
         @keyframes aiDot { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.1)} }
         .ai-scroll::-webkit-scrollbar { display: none; }
+        .mode-overlay { animation: fadeIn 0.18s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.bg, paddingBottom: kbH }}>
@@ -106,19 +115,35 @@ export function AIScreen({ entries }) {
         {/* ── Header ── */}
         <div style={{ padding: isDesktop ? '28px 40px 16px' : '52px 20px 14px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            {/* App icon */}
             <div style={{ width: 46, height: 46, borderRadius: 14, background: '#1C1410', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(28,20,16,0.28)', flexShrink: 0 }}>
               <span style={{ fontSize: 20, color: C.accent }}>✦</span>
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: C.text, lineHeight: 1.15 }}>
                 Wondrous AI
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#2E7D52' }} />
-                <span style={{ fontSize: 11.5, color: C.muted }}>Local AI</span>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: engineColor }} />
+                <span style={{ fontSize: 11.5, color: C.muted }}>{engineLabel}</span>
               </div>
             </div>
+            {/* Mode toggle button — always visible once chat starts */}
+            {hasMessages && (
+              <button
+                onClick={() => setShowModes(v => !v)}
+                style={{
+                  background: showModes ? C.accent : C.surface,
+                  border: `1px solid ${showModes ? C.accent : C.border}`,
+                  borderRadius: 12, padding: '6px 14px',
+                  fontSize: 12, fontWeight: 600,
+                  color: showModes ? '#fff' : C.sub,
+                  cursor: 'pointer', flexShrink: 0,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {showModes ? 'Hide modes' : '✦ Modes'}
+              </button>
+            )}
           </div>
 
           {/* Context banner */}
@@ -133,11 +158,19 @@ export function AIScreen({ entries }) {
         </div>
 
         {/* ── Scrollable area ── */}
-        <div className="ai-scroll" style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
+        <div className="ai-scroll" style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px', position: 'relative' }}>
 
-          {/* Mode cards grid */}
-          {showModes && messages.length === 0 && !isLoading && (
-            <div style={{ padding: isDesktop ? '4px 40px 24px' : '4px 18px 24px' }}>
+          {/* Mode cards — shown when showModes is true, regardless of messages */}
+          {showModes && (
+            <div className="mode-overlay" style={{ padding: isDesktop ? '4px 40px 20px' : '4px 18px 20px' }}>
+              {hasMessages && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.sub, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Choose a mode</span>
+                  <button onClick={() => setShowModes(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 4, display: 'flex' }}>
+                    <X size={14} strokeWidth={2} />
+                  </button>
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                 {MODES.map(({ icon, title, color, prompt }) => (
                   <button
@@ -150,38 +183,36 @@ export function AIScreen({ entries }) {
                       boxShadow: '0 2px 10px rgba(28,25,23,0.06)',
                       transition: 'transform 0.12s ease, box-shadow 0.12s ease',
                     }}
-                    onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.97)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(28,25,23,0.04)'; }}
-                    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(28,25,23,0.06)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(28,25,23,0.06)'; }}
+                    onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.97)'; }}
+                    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                     onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.97)'; }}
                     onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                   >
-                    <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 10 }}>{icon}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8, lineHeight: 1.3 }}>{title}</div>
+                    <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 8 }}>{icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 6, lineHeight: 1.3 }}>{title}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2, color, fontSize: 12, fontWeight: 600 }}>
                       Ask <ChevronRight size={12} strokeWidth={2.5} />
                     </div>
                   </button>
                 ))}
               </div>
+              {hasMessages && (
+                <div style={{ marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                  <div style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>or continue your conversation below</div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Conversation */}
-          <div style={{ padding: isDesktop ? '0 40px' : 0 }}>
-            {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
-            {isLoading && <TypingDots />}
-            <div ref={msgsEndRef} />
-          </div>
-
-          {/* Return to modes */}
-          {messages.length > 0 && !showModes && (
-            <div style={{ textAlign: 'center', padding: '4px 0 20px' }}>
-              <button onClick={() => setShowModes(true)} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 20, padding: '7px 18px', fontSize: 12, color: C.muted, cursor: 'pointer' }}>
-                ✦ Choose a mode
-              </button>
+          {!showModes || hasMessages ? (
+            <div style={{ padding: isDesktop ? '0 40px' : 0 }}>
+              {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
+              {isLoading && <TypingDots />}
+              <div ref={msgsEndRef} />
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* ── Input bar ── */}
@@ -193,7 +224,7 @@ export function AIScreen({ entries }) {
             onKeyDown={handleKey}
             placeholder="Ask anything…"
             rows={1}
-            style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', resize: 'none', lineHeight: 1.5, maxHeight: 100, overflowY: 'auto' }}
+            style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: '11px 14px', fontSize: 16, color: C.text, outline: 'none', resize: 'none', lineHeight: 1.5, maxHeight: 100, overflowY: 'auto' }}
             onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
           />
           <button
