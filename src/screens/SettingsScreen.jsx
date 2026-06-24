@@ -373,19 +373,26 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
               <input
                 value={waPhone}
                 onChange={e => setWaPhone(e.target.value)}
-                placeholder="+255 712 345 678"
+                placeholder="+ country code + number (e.g. +255 712 345 678)"
                 type="tel"
                 style={{
-                  width: '100%', border: `1.5px solid ${C.border}`, borderRadius: 12,
+                  width: '100%', borderRadius: 12,
+                  border: `1.5px solid ${waPhone && !waPhone.trim().startsWith('+') ? C.error : C.border}`,
                   padding: '10px 14px', fontSize: 14, fontFamily: 'inherit',
                   color: C.text, background: C.bg, outline: 'none', boxSizing: 'border-box',
                 }}
-                onFocus={e => e.target.style.borderColor = C.accent}
-                onBlur={e => e.target.style.borderColor = C.border}
+                onFocus={e => e.target.style.borderColor = waPhone && !waPhone.trim().startsWith('+') ? C.error : C.accent}
+                onBlur={e => e.target.style.borderColor = waPhone && !waPhone.trim().startsWith('+') ? C.error : C.border}
               />
-              <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>
-                Lets people connect with you directly from Commons posts
-              </div>
+              {waPhone && !waPhone.trim().startsWith('+') ? (
+                <div style={{ fontSize: 11.5, color: C.error, marginTop: 5, fontWeight: 500 }}>
+                  Must start with a country code — e.g. +255 (Tanzania), +254 (Kenya), +1 (USA)
+                </div>
+              ) : (
+                <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>
+                  Start with your country code — e.g. +255 712 345 678. Lets people connect from Commons.
+                </div>
+              )}
             </div>
             <button
               onClick={handleSaveProfile}

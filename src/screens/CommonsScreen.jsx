@@ -21,6 +21,19 @@ function nameFromEmail(email) {
     .replace(/\b\w/g, c => c.toUpperCase()) || 'Innovator';
 }
 
+// Ensures the number starts with + (does not guess country code)
+function normalizePhone(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('+')) return trimmed;
+  // Strip leading zeros from local format (e.g. 0712… → 712…) — user must supply country code
+  return trimmed;
+}
+
+function phoneHasCountryCode(val) {
+  return val.trim().startsWith('+');
+}
+
 const SETUP_SQL = `create table if not exists community_posts (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id) on delete cascade not null,
@@ -110,19 +123,25 @@ function SetNamePrompt({ onSave }) {
           <input
             value={phone}
             onChange={e => setPhone(e.target.value)}
-            placeholder="+255 712 345 678"
+            placeholder="+ country code + number (e.g. +255 712 345 678)"
             type="tel"
             style={{
-              width: '100%', border: `1.5px solid ${C.border}`, borderRadius: 12,
+              width: '100%', border: `1.5px solid ${phone && !phoneHasCountryCode(phone) ? '#E85D3A' : C.border}`, borderRadius: 12,
               padding: '11px 14px', fontSize: 15, fontFamily: 'inherit',
               color: C.text, background: C.bg, outline: 'none', boxSizing: 'border-box',
             }}
-            onFocus={e => e.target.style.borderColor = C.accent}
-            onBlur={e => e.target.style.borderColor = C.border}
+            onFocus={e => e.target.style.borderColor = phone && !phoneHasCountryCode(phone) ? '#E85D3A' : C.accent}
+            onBlur={e => e.target.style.borderColor = phone && !phoneHasCountryCode(phone) ? '#E85D3A' : C.border}
           />
-          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>
-            If set, people can connect with you directly via WhatsApp
-          </div>
+          {phone && !phoneHasCountryCode(phone) ? (
+            <div style={{ fontSize: 11.5, color: '#E85D3A', marginTop: 5, fontWeight: 500 }}>
+              Must start with a country code, e.g. +255 for Tanzania, +254 for Kenya, +1 for USA
+            </div>
+          ) : (
+            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>
+              Start with your country code — e.g. +255 712 345 678
+            </div>
+          )}
         </div>
 
         <button
@@ -374,24 +393,28 @@ function ThreadView({ post, userId, userName, onBack, onLike, liked, fetchCommen
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: '#E9FBF0', border: '1px solid #25D36640',
-              borderRadius: 14, padding: '14px 18px', marginBottom: 14,
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: '#25D366',
+              borderRadius: 16, padding: '16px 20px', marginBottom: 14,
               textDecoration: 'none',
+              boxShadow: '0 4px 16px rgba(37,211,102,0.35)',
+              WebkitTapHighlightColor: 'transparent',
+              cursor: 'pointer',
             }}
           >
             <div style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+              background: 'rgba(255,255,255,0.22)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Phone size={17} color="#fff" strokeWidth={2} />
+              <Phone size={22} color="#fff" strokeWidth={2} />
             </div>
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1A5C35' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 2 }}>
                 Connect on WhatsApp
               </div>
-              <div style={{ fontSize: 12, color: '#2E7D52' }}>
-                Chat directly with {post.author_name || 'this person'}
+              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.8)' }}>
+                Tap to chat with {post.author_name || 'this person'}
               </div>
             </div>
           </a>
