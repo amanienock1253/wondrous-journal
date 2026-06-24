@@ -300,8 +300,8 @@ function ThreadView({ post, userId, userName, onBack, onLike, liked, fetchCommen
 
   return (
     <div style={{
-      position: 'absolute', inset: 0, background: C.bg,
-      display: 'flex', flexDirection: 'column', zIndex: 10,
+      position: 'fixed', inset: 0, background: C.bg,
+      display: 'flex', flexDirection: 'column', zIndex: 250,
       animation: 'slideUp 0.2s ease',
     }}>
       {/* Header — top padding clears status bar */}
@@ -499,7 +499,8 @@ function ThreadView({ post, userId, userName, onBack, onLike, liked, fetchCommen
 
       {/* Comment input */}
       <div style={{
-        padding: '12px 16px 24px',
+        padding: '12px 16px env(safe-area-inset-bottom, 20px)',
+        paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
         borderTop: `1px solid ${C.border}`,
         background: C.surface, flexShrink: 0,
         display: 'flex', gap: 10, alignItems: 'flex-end',
