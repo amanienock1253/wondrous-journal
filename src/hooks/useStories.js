@@ -26,12 +26,24 @@ export function useStories(userId) {
       .order('created_at', { ascending: false });
 
     if (data) {
-      setMyStory(data.find(s => s.user_id === userId) || null);
+      // Fetch display names for all unique authors in one query
+      const authorIds = [...new Set(data.map(s => s.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', authorIds);
+
+      const nameMap = {};
+      (profiles || []).forEach(p => { if (p.display_name) nameMap[p.id] = p.display_name; });
+
+      const withNames = data.map(s => ({ ...s, author_name: nameMap[s.user_id] || null }));
+
+      setMyStory(withNames.find(s => s.user_id === userId) || null);
 
       // One story per other user (most recent)
       const seen = new Set([userId]);
       const others = [];
-      for (const s of data) {
+      for (const s of withNames) {
         if (!seen.has(s.user_id)) {
           seen.add(s.user_id);
           others.push(s);

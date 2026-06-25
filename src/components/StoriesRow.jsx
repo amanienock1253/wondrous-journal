@@ -27,7 +27,9 @@ function GhostCircle() {
 function CommunityCircle({ story, onClick }) {
   const viewed = getViewed().has(story.id);
   const color  = userColor(story.user_id);
-  const label  = userInitials(story.user_id);
+  const label  = story.author_name
+    ? story.author_name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : userInitials(story.user_id);
   const theme  = STORY_BG[story.bg] || STORY_BG.sunset;
   const age    = Math.floor((Date.now() - new Date(story.created_at)) / 3600000);
 
@@ -54,9 +56,14 @@ function CommunityCircle({ story, onClick }) {
           </span>
         </div>
       </div>
-      <span style={{ fontSize: 10.5, color: C.muted, fontWeight: 500 }}>
-        {age < 1 ? 'now' : `${age}h`}
+      <span style={{ fontSize: 10.5, color: C.sub, fontWeight: 600, maxWidth: 68, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {story.author_name || (age < 1 ? 'now' : `${age}h`)}
       </span>
+      {story.author_name && (
+        <span style={{ fontSize: 9.5, color: C.muted, marginTop: -3 }}>
+          {age < 1 ? 'now' : `${age}h`}
+        </span>
+      )}
     </button>
   );
 }

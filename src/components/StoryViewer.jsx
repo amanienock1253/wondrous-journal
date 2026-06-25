@@ -48,7 +48,9 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }) {
 
   const theme  = STORY_BG[story.bg] || STORY_BG.sunset;
   const color  = userColor(story.user_id);
-  const label  = userInitials(story.user_id);
+  const label  = story.author_name
+    ? story.author_name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : userInitials(story.user_id);
   const expiry = 24 - Math.floor((Date.now() - new Date(story.created_at)) / 3600000);
 
   return (
@@ -85,7 +87,7 @@ export function StoryViewer({ stories, initialIndex = 0, onClose }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1 }}>
-            Community member
+            {story.author_name || 'Community member'}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
             {timeAgo(story.created_at)} · expires in {Math.max(1, expiry)}h
