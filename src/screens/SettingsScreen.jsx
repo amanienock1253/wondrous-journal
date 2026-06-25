@@ -278,7 +278,10 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
     showToast?.('Gemini key removed — all users revert to local AI');
   };
 
-  const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'WJ';
+  const heroName = displayName.trim() || profile?.display_name || '';
+  const initials = heroName
+    ? heroName.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : (userEmail ? userEmail.slice(0, 2).toUpperCase() : 'WJ');
   const px = isDesktop ? '36px 48px 48px' : '52px 20px 120px';
 
   return (
@@ -326,8 +329,11 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
             {initials}
           </div>
           <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'rgba(247,243,232,0.95)', marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {userEmail || 'Your account'}
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'rgba(247,243,232,0.97)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {heroName || 'Set your name'}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'rgba(247,243,232,0.45)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {userEmail}
             </div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -345,73 +351,67 @@ export function SettingsScreen({ onSignOut, userEmail, isAdmin, entries = [], on
           <div style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 8 }}>
             Profile
           </div>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, padding: '18px 18px 20px' }}>
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
-                <User size={13} color={C.muted} strokeWidth={2} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.sub }}>Display Name</span>
-              </div>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, padding: '14px 16px' }}>
+
+            {/* Display Name row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+              <User size={14} color={C.muted} strokeWidth={1.75} style={{ flexShrink: 0 }} />
               <input
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
-                placeholder="How others see you in Commons"
+                placeholder="Display name"
                 style={{
-                  width: '100%', border: `1.5px solid ${C.border}`, borderRadius: 12,
-                  padding: '10px 14px', fontSize: 14, fontFamily: 'inherit',
-                  color: C.text, background: C.bg, outline: 'none', boxSizing: 'border-box',
+                  flex: 1, border: 'none', background: 'transparent',
+                  fontSize: 14, fontFamily: 'inherit', color: C.text, outline: 'none',
                 }}
-                onFocus={e => e.target.style.borderColor = C.accent}
-                onBlur={e => e.target.style.borderColor = C.border}
               />
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
-                <Phone size={13} color={C.muted} strokeWidth={2} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.sub }}>WhatsApp Number</span>
-                <span style={{ fontSize: 11, color: C.muted }}>(optional)</span>
+
+            {/* WhatsApp row */}
+            <div style={{ padding: '8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Phone size={14} color={C.muted} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+                <input
+                  value={waPhone}
+                  onChange={e => setWaPhone(e.target.value)}
+                  placeholder="+255 712 345 678 (with country code)"
+                  type="tel"
+                  style={{
+                    flex: 1, border: 'none', background: 'transparent',
+                    fontSize: 14, fontFamily: 'inherit',
+                    color: waPhone && !waPhone.trim().startsWith('+') ? C.error : C.text,
+                    outline: 'none',
+                  }}
+                />
               </div>
-              <input
-                value={waPhone}
-                onChange={e => setWaPhone(e.target.value)}
-                placeholder="+ country code + number (e.g. +255 712 345 678)"
-                type="tel"
-                style={{
-                  width: '100%', borderRadius: 12,
-                  border: `1.5px solid ${waPhone && !waPhone.trim().startsWith('+') ? C.error : C.border}`,
-                  padding: '10px 14px', fontSize: 14, fontFamily: 'inherit',
-                  color: C.text, background: C.bg, outline: 'none', boxSizing: 'border-box',
-                }}
-                onFocus={e => e.target.style.borderColor = waPhone && !waPhone.trim().startsWith('+') ? C.error : C.accent}
-                onBlur={e => e.target.style.borderColor = waPhone && !waPhone.trim().startsWith('+') ? C.error : C.border}
-              />
-              {waPhone && !waPhone.trim().startsWith('+') ? (
-                <div style={{ fontSize: 11.5, color: C.error, marginTop: 5, fontWeight: 500 }}>
-                  Must start with a country code — e.g. +255 (Tanzania), +254 (Kenya), +1 (USA)
-                </div>
-              ) : (
-                <div style={{ fontSize: 11.5, color: C.muted, marginTop: 5 }}>
-                  Start with your country code — e.g. +255 712 345 678. Lets people connect from Commons.
+              {waPhone && !waPhone.trim().startsWith('+') && (
+                <div style={{ fontSize: 11, color: C.error, marginTop: 4, paddingLeft: 24, fontWeight: 500 }}>
+                  Must start with country code — e.g. +255, +254, +1
                 </div>
               )}
             </div>
-            <button
-              onClick={handleSaveProfile}
-              disabled={!displayName.trim() || profileSaving}
-              style={{
-                padding: '10px 20px', borderRadius: 12, border: 'none',
-                background: profileSaved
-                  ? '#2E7D52' : displayName.trim()
-                  ? 'linear-gradient(135deg, #1C1410, #2A1C14)' : C.border,
-                color: profileSaved ? '#fff' : displayName.trim() ? C.accent : C.muted,
-                fontSize: 13.5, fontWeight: 700,
-                cursor: displayName.trim() ? 'pointer' : 'default',
-                display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s',
-              }}
-            >
-              {profileSaving ? <><Loader size={13} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> Saving…</>
-               : profileSaved ? <><CheckCircle2 size={13} strokeWidth={2.5} /> Saved</>
-               : 'Save Profile'}
-            </button>
+
+            {/* Save button — right aligned, compact */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+              <button
+                onClick={handleSaveProfile}
+                disabled={!displayName.trim() || profileSaving}
+                style={{
+                  padding: '8px 20px', borderRadius: 10, border: 'none',
+                  background: profileSaved
+                    ? '#2E7D52' : displayName.trim()
+                    ? 'linear-gradient(135deg, #1C1410, #2A1C14)' : C.border,
+                  color: profileSaved ? '#fff' : displayName.trim() ? C.accent : C.muted,
+                  fontSize: 13, fontWeight: 700,
+                  cursor: displayName.trim() ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s',
+                }}
+              >
+                {profileSaving ? <><Loader size={12} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> Saving…</>
+                 : profileSaved ? <><CheckCircle2 size={12} strokeWidth={2.5} /> Saved</>
+                 : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
 
